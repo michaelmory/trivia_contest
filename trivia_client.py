@@ -19,8 +19,8 @@ class TriviaClient:
 
         # This thread will allow the client to receive and send messages once connected
         if self.tcp_socket:
-            communication_thread = threading.Thread(target=self.communicate)
-            communication_thread.start()
+            self.communicate()
+
 
     def listen_for_offers(self):
         while self.running and not self.tcp_socket:
@@ -49,7 +49,9 @@ class TriviaClient:
 
     def communicate(self):
         while self.running and self.tcp_socket:
-            read_sockets, _, _ = select.select([sys.stdin, self.tcp_socket], [], [])
+            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
+            print(read_sockets)
+            print(sys.stdin)
             for sock in read_sockets:
                 if sock == sys.stdin:
                     message = sys.stdin.readline()
