@@ -73,7 +73,7 @@ class TriviaClient:
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
             data = self.tcp_socket.recv(1024)
-            print(data)
+            print(f'{str(data)[2:-1]}')
             if data == 'game is starting now!':
                 self.game_start()
     def game_start(self):
