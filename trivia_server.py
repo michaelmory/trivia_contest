@@ -30,31 +30,41 @@ trivia_questions = [
 ]
 server_ip = socket.gethostbyname(socket.gethostname())
 udp_port = 13117
-tcp_port = 13118
+tcp_port = 1337
+min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
-# 
+# when debug=True, the server will print debug messages
 class TriviaServer:
-    def __init__(self, host='0.0.0.0', tcp_port=tcp_port, udp_port=udp_port):
+    def __init__(self, host=server_ip, tcp_port=tcp_port, udp_port=udp_port, debug=False):
         self.host = host
         self.tcp_port = tcp_port
         self.udp_port = udp_port
         self.clients = []
-        self.running = True
+        self.state = 1 # 0 = shutdown, 1 = waiting for clients, 2 = trivia game in progress
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # debug section
+        self.debug = debug
+        self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
+        self.udp_socket.settimeout(1)  # Set a timeout of 1 second
 
     def start(self):
         self.setup_tcp_socket()
         udp_thread = threading.Thread(target=self.broadcast_offers)
         udp_thread.start()
-
         try:
-            while self.running:
-                client_socket, addr = self.tcp_socket.accept()
-                client_thread = threading.Thread(target=self.handle_client, args=(client_socket, addr))
-                client_thread.start()
+            while self.state == 1:
+                try:
+                    client_socket, addr = self.tcp_socket.accept()
+                    client_thread = threading.Thread(target=self.handle_client, args=(client_socket, addr))
+                    client_thread.start()
+                except socket.timeout:
+                    continue  # If the accept() call times out, just continue the loop
+        except KeyboardInterrupt:
+            print("\nInterrupt received! Shutting down server...")
+            self.state = 0
         finally:
             self.shutdown()
 
@@ -66,8 +76,10 @@ class TriviaServer:
 
     def broadcast_offers(self):
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, b'MysticTriviaServer'.ljust(32), self.tcp_port)
-        while self.running:
+        while self.state:
             self.udp_socket.sendto(message, ('<broadcast>', self.udp_port))
+            if self.debug:
+                print(f"Broadcasting server offer to port {self.udp_port}")
             time.sleep(1)
 
     def handle_client(self, client_socket, addr):
@@ -84,12 +96,16 @@ class TriviaServer:
             client_socket.close()
 
     def shutdown(self):
-        self.running = False
+        self.state = 0
         self.tcp_socket.close()
         self.udp_socket.close()
         print("Server shutdown complete.")
 
 # Usage
 if __name__ == "__main__":
-    server = TriviaServer()
-    server.start()
+    server = TriviaServer(debug=True)
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        print("\nInterrupt received! Shutting down server...")
+        server.shutdown()
