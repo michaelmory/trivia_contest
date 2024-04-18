@@ -2,9 +2,11 @@ import socket
 import threading
 import struct
 import selectors
+import select
 import logging
 import os
 import time
+from trivia_player import Player
 
 trivia_questions = [
     ("Is HTTP a stateless protocol?", True),
@@ -43,7 +45,7 @@ class TriviaServer:
         self.name = name
         self.questions = trivia_questions
         self.min_clients = min_clients
-        self.clients = {}  # {client_name: client_socket}
+        self.clients = {}  # {client_name: player_object}
         self.scores = {}
         self.questions = trivia_questions
         self.question_index = 0
@@ -59,7 +61,7 @@ class TriviaServer:
         self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
         self.udp_socket.settimeout(1)  # Set a timeout of 1 second
 
-    def start(self):
+    def start(self): #
         self.setup_tcp_socket()
         udp_thread = threading.Thread(target=self.broadcast_offers)
         udp_thread.start()
@@ -77,13 +79,13 @@ class TriviaServer:
         finally:
             self.shutdown()
 
-    def setup_tcp_socket(self):
+    def setup_tcp_socket(self): #
         self.tcp_socket.bind((self.host, self.tcp_port))
         self.tcp_socket.listen()
         self.tcp_port = self.tcp_socket.getsockname()[1]
         print(f"Server started, listening on IP {self.host} and port {self.tcp_port}")
 
-    def broadcast_offers(self):
+    def broadcast_offers(self): #
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
         while self.state:
             self.udp_socket.sendto(message, ('<broadcast>', self.udp_port))
@@ -91,8 +93,8 @@ class TriviaServer:
                 print(f"Broadcasting server offer to port {self.udp_port}, Clients: {[k for k in self.clients.keys()]}")
             time.sleep(1)
 
-    def handle_client(self, client_socket, addr):
-        print(f"Connected to {addr}")
+    def handle_client(self, client_socket, addr): #
+        print(f"Connected to {addr}") # TODO: say connected only if connected
         try:
             while True:
                 data = client_socket.recv(1024)
@@ -100,8 +102,7 @@ class TriviaServer:
                     break
                 client_name = data.decode().strip()
                 if client_name not in self.clients: # TODO: if the name is taken, ask the client to choose another name
-                    self.clients[client_name] = client_socket
-                    self.scores[client_name] = 0
+                    self.clients[client_name] = Player(client_name, addr[0], addr[1], client_socket)
                     print(f"New client {client_name} connected from {addr}")
                     if len(self.clients) >= self.min_clients:
                         self.reset_game_timer()
@@ -111,7 +112,7 @@ class TriviaServer:
     def broadcast_countdown(self):
         count = self.countdown
         while count > 0:
-            self.broadcast_message(f"The game will start in {count} seconds.")
+            self.anounce_message(f"The game will start in {count} seconds.")
             time.sleep(1)
             count -= 1
 
@@ -127,17 +128,20 @@ class TriviaServer:
         
     def start_game(self):
         self.state = 2
-        self.broadcast_message("Game is starting now!")
+        self.anounce_message("Game is starting now!")
         self.run_game()
 
     def run_game(self):
         for question, answer in self.questions:
-            self.broadcast_message(f"Question: {question}")
+            self.anounce_message(f"Question: {question}")
+            # use select to wait for responses from all clients
+            ready = select.select(list(self.clients.values()), [], [], 10)[0]
+
             responses = self.collect_responses()
             for client_name, response in responses.items():
                 if (response.lower() in ['y', 't', '1']) == answer:
                     self.scores[client_name] += 1
-            self.broadcast_message("Next question coming up...")
+            self.anounce_message("Next question coming up...")
         self.declare_winner()
 
     def collect_responses(self):
@@ -153,7 +157,7 @@ class TriviaServer:
 
     def declare_winner(self):
         winner = max(self.scores, key=self.scores.get)
-        self.broadcast_message(f"Congratulations {winner}! You are the winner with {self.scores[winner]} correct answers!")
+        self.anounce_message(f"Congratulations {winner}! You are the winner with {self.scores[winner]} correct answers!")
         self.reset_state()
 
     def reset_state(self):
@@ -164,9 +168,9 @@ class TriviaServer:
         self.state = 1
         self.broadcast_offers()
 
-    def broadcast_message(self, message):
-        for client_socket in self.clients.values():
-            client_socket.sendall(message.encode())
+    def anounce_message(self, message):
+        for player in self.clients.values():
+            player.announce(message)
 
     def shutdown(self):
         self.state = 0
