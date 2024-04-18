@@ -7,6 +7,7 @@ import struct
 class TriviaClient:
     def __init__(self, username="Player"):
         self.username = username
+        self.server_name = None
         self.server_address = None
         self.tcp_socket = None
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -26,7 +27,7 @@ class TriviaClient:
         while self.running and not self.tcp_socket:
             data, addr = self.udp_socket.recvfrom(1024)  # Buffer size is 1024 bytes
             if self.validate_offer(data):
-                print(f"Received offer from server at {addr[0]}") #todo: change message so it fits description
+                print(f"Received offer from server '{self.server_name}' at {addr[0]}, attempting to connect...") #todo: change message so it fits description
                 self.server_address = (addr[0], int.from_bytes(data[37:39], byteorder='big'))
                 self.connect_to_server()
 
@@ -34,6 +35,8 @@ class TriviaClient:
     def validate_offer(self, data):
         magic_cookie, message_type = struct.unpack('!I B', data[:5])
         if magic_cookie == 0xabcddcba and message_type == 0x02:
+            unpacked_data = struct.unpack('!I B 32s H', data)
+            self.server_name = unpacked_data[2].decode().strip()
             return True
         return False
 
@@ -42,19 +45,21 @@ class TriviaClient:
         try:
             self.tcp_socket.connect(self.server_address)
             self.tcp_socket.sendall((self.username + "\n").encode())
-            print(f"Connected to server {self.server_address[0]}")
+            print(f"Connected to server {self.server_name} at {self.server_address[0]}")
         except Exception as e:
             print(f"Failed to connect to server: {e}")
             self.tcp_socket = None
 
     def communicate(self):
+
+        self.game_lobby()
+
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            print(read_sockets)
-            print(sys.stdin)
             for sock in read_sockets:
                 if sock == sys.stdin:
                     message = sys.stdin.readline()
+                    print(f' the message is {message}')
                     self.tcp_socket.sendall(message.encode())
                 else:
                     response = sock.recv(1024)
@@ -63,6 +68,21 @@ class TriviaClient:
                         self.running = False
                     else:
                         print(response.decode(), end='')
+
+    def game_lobby(self):
+        while self.running and self.tcp_socket:
+            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
+            data = self.tcp_socket.recv(1024)
+            print(data)
+            if data == 'game is starting now!':
+                self.game_start()
+    def game_start(self):
+        while self.running and self.tcp_socket:
+            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
+            data, addr = self.tcp_socket.recv(1024)
+            print(data)
+            message = input("enter your answer (Y1T: for Yes \ NF0 for no")
+            self.tcp_socket.sendall(message)
 
     def stop(self):
         self.running = False
