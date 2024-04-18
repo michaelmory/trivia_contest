@@ -50,6 +50,7 @@ class Player:
         self._client_socket = value
 
     def announce(self, message):
+        message += "\n"
         self._client_socket.sendall(message.encode())
 
     def question(self, question, answer, limit = 10):
@@ -58,8 +59,7 @@ class Player:
         try:
             self.client_socket.settimeout(limit)
             data = self._client_socket.recv(1024)
-            print("message received")
-            self.score += (answer == (data.decode().strip().lower() in ['y', 't', '1']))(limit - timer() + start)/limit
+            self.score += (int(answer == (data.decode().strip().lower() in ['y', 't', '1'])))*(limit - timer() + start)/limit
             self.announce("Waiting for all players to answer...")
             return (answer == (data.decode().strip().lower() in ['y', 't', '1']))
         except socket.timeout:
