@@ -72,17 +72,23 @@ class TriviaClient:
     def game_lobby(self):
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            data = self.tcp_socket.recv(1024)
-            print(f'{str(data)[2:-1]}')
-            if data == 'game is starting now!':
+            data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+            print(data)
+            if 'now' in str(data):
                 self.game_start()
     def game_start(self):
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            data, addr = self.tcp_socket.recv(1024)
+            data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(data)
-            message = input("enter your answer (Y1T: for Yes \ NF0 for no")
-            self.tcp_socket.sendall(message)
+            if 'Thanks' in data:
+                self.stop()
+                break
+
+            if 'Question' in data: #todo: input control
+                message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
+                if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                    self.tcp_socket.sendall(message.encode())
 
     def stop(self):
         self.running = False
