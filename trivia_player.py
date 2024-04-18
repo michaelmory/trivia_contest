@@ -1,4 +1,5 @@
 import socket
+from timeit import default_timer as timer
 
 class Player:
     def __init__(self, name, address, dst_port, client_socket):
@@ -48,5 +49,21 @@ class Player:
     def client_socket(self, value):
         self._client_socket = value
 
-    def anounce(self, message):
+    def announce(self, message):
         self._client_socket.sendall(message.encode())
+
+    def question(self, question, answer, limit = 10):
+        start = timer()
+        self.announce(question)
+        try:
+            self.client_socket.settimeout(limit)
+            data = self._client_socket.recv(1024)
+            print("message received")
+            self.score += (answer == (data.decode().strip().lower() in ['y', 't', '1']))(limit - timer() + start)/limit
+            self.announce("Waiting for all players to answer...")
+            return (answer == (data.decode().strip().lower() in ['y', 't', '1']))
+        except socket.timeout:
+            self.announce("Ran out of time, next question coming up...")
+            return 0
+
+        

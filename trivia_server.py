@@ -77,7 +77,8 @@ class TriviaServer:
             print("\nInterrupt received! Shutting down server...")
             self.state = 0
         finally:
-            self.shutdown()
+            # self.shutdown()
+            pass
 
     def setup_tcp_socket(self): #
         self.tcp_socket.bind((self.host, self.tcp_port))
@@ -87,7 +88,7 @@ class TriviaServer:
 
     def broadcast_offers(self): #
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
-        while self.state:
+        while self.state == 1:
             self.udp_socket.sendto(message, ('<broadcast>', self.udp_port))
             if self.debug:
                 print(f"Broadcasting server offer to port {self.udp_port}, Clients: {[k for k in self.clients.keys()]}")
@@ -107,12 +108,13 @@ class TriviaServer:
                     if len(self.clients) >= self.min_clients:
                         self.reset_game_timer()
         finally:
-            client_socket.close()
+            # client_socket.close()
+            pass
 
     def broadcast_countdown(self):
         count = self.countdown
         while count > 0:
-            self.anounce_message(f"The game will start in {count} seconds.")
+            self.announce_message(f"The game will start in {count} seconds.")
             time.sleep(1)
             count -= 1
 
@@ -128,20 +130,19 @@ class TriviaServer:
         
     def start_game(self):
         self.state = 2
-        self.anounce_message("Game is starting now!")
-        self.run_game()
+        self.announce_message("Game is starting now!")
+        self.game_time()
 
     def run_game(self):
-        for question, answer in self.questions:
-            self.anounce_message(f"Question: {question}")
+        for i, (question, answer) in enumerate(self.questions):
+            self.announce_message(f"Question #{i+1}: {question}")
             # use select to wait for responses from all clients
-            ready = select.select(list(self.clients.values()), [], [], 10)[0]
-
+            # ready = select.select(list(self.clients.values()), [], [], 10)[0]
             responses = self.collect_responses()
             for client_name, response in responses.items():
                 if (response.lower() in ['y', 't', '1']) == answer:
                     self.scores[client_name] += 1
-            self.anounce_message("Next question coming up...")
+            self.announce_message("Next question coming up...")
         self.declare_winner()
 
     def collect_responses(self):
@@ -154,29 +155,46 @@ class TriviaServer:
             except socket.timeout:
                 continue
         return responses
+    
+    def game_time(self,timer = 10):
+        for i, (question, answer) in enumerate(self.questions):
+            self.announce_message(f"Question #{i+1}:\n")
+            client_threads =  [threading.Thread(target=self.clients[client].question, args=(question,answer,timer)) for client in self.clients]
+            for client_thread in client_threads:
+                client_thread.start()
+            for client_thread in client_threads:
+                client_thread.join()
+        self.announce_message("Game over! The scores are:\n")
+        scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
+        for client in scoreboard:
+            self.announce_message(f"{client}: {self.clients[client].score}")
+        self.announce_message(f"Congratulations {scoreboard[0]} on the big W\n\nThanks for playing!")
+        
 
     def declare_winner(self):
         winner = max(self.scores, key=self.scores.get)
-        self.anounce_message(f"Congratulations {winner}! You are the winner with {self.scores[winner]} correct answers!")
+        self.announce_message(f"Congratulations {winner}! You are the winner with {self.scores[winner]} correct answers!")
         self.reset_state()
 
     def reset_state(self):
         for client_socket in self.clients.values():
             client_socket.close()
+            print("reset state closes")
         self.clients.clear()
         self.scores.clear()
         self.state = 1
         self.broadcast_offers()
 
-    def anounce_message(self, message):
+    def announce_message(self, message):
         for player in self.clients.values():
             player.announce(message)
 
     def shutdown(self):
         self.state = 0
         # disconnect all clients
-        for _, client in self.clients.items():
-            client.close()
+        for _, player in self.clients.items():
+            player.client_socket.close()
+            print("shutdown closes")
         self.tcp_socket.close()
         self.udp_socket.close()
         print("Server shutdown complete.")
