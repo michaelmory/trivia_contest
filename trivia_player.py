@@ -49,14 +49,14 @@ class Player:
     def client_socket(self, value):
         self._client_socket = value
 
-    def announce(self, content, message_type=0x03):
+    def announce(self, content, message_type=0x00):
         content += "\n"
         message = bytes([message_type]) + content.encode()
         self._client_socket.sendall(message)
 
     def question(self, question, answer, limit = 10):
         start = timer()
-        self.announce(question)
+        self.announce(question, 0x03)
         try:
             self.client_socket.settimeout(limit) # TODO: leave a second between questions to avoid next question being sent as answer
             data = self._client_socket.recv(1024)

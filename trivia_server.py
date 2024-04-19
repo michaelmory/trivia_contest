@@ -74,9 +74,6 @@ class TriviaServer:
         self.tcp_port = self.tcp_socket.getsockname()[1]
         print(f"Server started, listening on IP {self.host} and port {self.tcp_port}")
 
-    def pack_message(self, message_type, message): 
-        return struct.pack('!I B 32s H', 0xabcddcba, message_type, message.encode().ljust(32), self.tcp_port)
-
     def broadcast_offers(self): #
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
         try:
@@ -127,7 +124,7 @@ class TriviaServer:
         
     def start_game(self):
         self.state = 2
-        self.announce_message("Game is starting now!")
+        self.announce_message("Game is starting now!", 0x01)
         self.game_time()
 
     def game_time(self,timer = 10):
@@ -138,7 +135,7 @@ class TriviaServer:
                 client_thread.start()
             for client_thread in client_threads:
                 client_thread.join()
-        self.announce_message("Game over! The scores are:\n")
+        self.announce_message("Game over! The scores are:\n", 0x05)
         scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
         for client in scoreboard:
             self.announce_message(f"{client}: {self.clients[client].score}")
@@ -151,7 +148,8 @@ class TriviaServer:
         self.scores.clear()
         self.start()
 
-    def announce_message(self, message, message_type = 0x03):
+    def announce_message(self, message, message_type = 0x00):
+        # message_type 0x00 = simply print, 0x01 = game start, 0x02 = invalid, 0x03 = question, 0x04 = disconnect, 0x05 = game over
         for player in self.clients.values():
             player.announce(message, message_type)
 
