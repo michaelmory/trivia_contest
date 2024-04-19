@@ -85,9 +85,9 @@ class TriviaClient:
                 self.stop()
                 break
 
-            if 'Round begins!' in data:#todo: input control
+            if 'Round begins!' or "last question!" in data:#todo: input control
                 participants = data.split("\nQ")[0]
-                participants = participants.split(", ")[1:]
+                participants = participants.split("\'")[1:-1]
                 if self.username in participants:
                     message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
                     if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
@@ -102,6 +102,6 @@ class TriviaClient:
 
 # Usage
 if __name__ == "__main__":
-    username = input("Enter your username: ")
+    username = "yeled zevel"
     client = TriviaClient(username)
     client.start()

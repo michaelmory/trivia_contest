@@ -36,7 +36,7 @@ server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
 udp_port = 13117
 tcp_port = 1337
-min_clients = 1  # start 10 second timer after a player connects and len(self.clients) >= min_clients
+min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
 
 # when debug=True, the server will print debug messages
@@ -59,7 +59,9 @@ class TriviaServer:
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.game_timer = None
+        self.countdown_timer = None
         self.countdown = 10
+        self.count = self.countdown
         # debug section (probably delete before submission)
         self.debug = debug
         self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
@@ -127,23 +129,25 @@ class TriviaServer:
             pass
 
     def broadcast_countdown(self):
-        count = self.countdown
-        while count > 0:
-            self.announce_message(f"The game will start in {count} seconds.")
+        # count = self.countdown
+        while self.count > 0:
+            self.announce_message(f"The game will start in {self.count} seconds.")
             if self.debug:
-                print(f"Countdown: {count}")
+                print(f"Countdown: {self.count}")
             time.sleep(1)
-            count -= 1
+            self.count -= 1
 
     def reset_game_timer(self):
         if self.game_timer:
             self.game_timer.cancel()
-        if hasattr(self, 'countdown_timer') and self.countdown_timer.is_alive():
-            self.countdown_timer.join()
+        # if hasattr(self, 'countdown_timer') and self.countdown_timer.is_alive():
+        #     self.countdown_timer.join()
+        self.count = self.countdown
         self.game_timer = threading.Timer(self.countdown, self.start_game)
-        self.countdown_timer = threading.Thread(target=self.broadcast_countdown)
         self.game_timer.start()
-        self.countdown_timer.start()
+        if not self.countdown_timer:
+            self.countdown_timer = threading.Thread(target=self.broadcast_countdown)
+            self.countdown_timer.start()
 
     def start_game(self):
         self.state = 2
@@ -180,7 +184,7 @@ class TriviaServer:
         for i, (question, answer) in enumerate(self.questions):
             if len(ingame) == 1 or i == len(self.questions) - 1:
                 break
-            cl = str([c for i in ingame])[1:-1]
+            cl = str([c for c in ingame])[1:-1]
             self.announce_message("Round begins! You're up, "+ cl +f"\nQuestion #{i + 1}: \n{question}")
             client_threads = [threading.Thread(target=self.clients[client].question, args=(question, answer, timer)) for
                               client in self.clients if client in ingame]
@@ -201,8 +205,10 @@ class TriviaServer:
                 self.announce_message(f"Everyone was wrong - you all continue to the next round!")
 
         if len(ingame) > 1:
-            self.announce_message(f"This is the last question! fastest one to answer correctly wins!")
-            self.announce_message(f"Last Question: \n{self.questions[-1][0]}")
+            cl = str([c for c in ingame])[1:-1]
+            self.announce_message(f"This is the last question! fastest one to answer correctly wins! " + cl + f"\nQuestion la finale: \n{self.questions[-1][0]}")
+            # self.announce_message(f"This is the last question! fastest one to answer correctly wins!")
+            # self.announce_message(f"Last Question: \n{self.questions[-1][0]}")
             client_threads = [threading.Thread(target=self.clients[client].question,
                                                args=(self.questions[-1][0], self.questions[-1][1], timer)) for client in
                               self.clients if client in ingame]
