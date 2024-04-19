@@ -6,6 +6,7 @@ import select
 import logging
 import os
 import time
+from copy import deepcopy
 from trivia_player import Player
 
 trivia_questions = [
@@ -116,6 +117,7 @@ class TriviaServer:
                     print(f"New client {client_name} connected from {addr}")
                     if len(self.clients) >= self.min_clients:
                         self.reset_game_timer()
+
         finally:
             # client_socket.close()
             pass
@@ -168,18 +170,34 @@ class TriviaServer:
     #     return responses
     
     def game_time(self,timer = 10):
+
+        ingame = list(self.clients.keys)
         for i, (question, answer) in enumerate(self.questions):
-            self.announce_message(f"Question #{i+1}:") # TODO: end if there's a winner
-            client_threads =  [threading.Thread(target=self.clients[client].question, args=(question,answer,timer)) for client in self.clients]
+            self.announce_message(f"Question #{i+1}: \n{question}") # TODO: end if there's a winner
+            client_threads = [threading.Thread(target=self.clients[client].question, args=(question, answer, timer)) for client in self.clients if client in ingame]
+            if len(ingame) == 1:
+                break
             for client_thread in client_threads:
                 client_thread.start()
             for client_thread in client_threads:
                 client_thread.join()
-        self.announce_message("Game over! The scores are:\n")
-        scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
-        for client in scoreboard:
-            self.announce_message(f"{client}: {self.clients[client].score}")
-        self.announce_message(f"Congratulations {scoreboard[0]} on the big W\n\nThanks for playing!")
+            for client in self.clients:
+                if client in ingame:
+                    losers = ingame.copy()
+                    self.announce_message(f"{client.name} is {not client.score*'in'}correct!")
+                    if not client.score:
+                        losers.remove(client)
+                    if len(losers) != 0:
+                        ingame = losers
+                    else:
+                        self.announce_message(f"Everyone was wrong - you all continue to the next round!")
+
+
+        self.announce_message(f"Game over! The Winner is: {ingame[0]}")
+        # scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
+        # for client in scoreboard:
+        #     self.announce_message(f"{client}: {self.clients[client].score}")
+        self.announce_message(f"Congratulations {ingmae[0]} on the big W\n\nThanks for playing!")
         self.reset_state()
 
     # def declare_winner(self):
