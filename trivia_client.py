@@ -93,13 +93,7 @@ class TriviaClient:
                     if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
                         self.tcp_socket.sendall(message.encode())
 
-    def reset(self):
-        self.tcp_socket = None
-        self.server_address = None
-        self.server_name = None
-        self.start()
-
-    def stop(self): # unused for now
+    def stop(self):
         self.running = False
         if self.tcp_socket:
             self.tcp_socket.close()

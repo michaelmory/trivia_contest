@@ -36,7 +36,7 @@ server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
 udp_port = 13117
 tcp_port = 1337
-min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
+min_clients = 1 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
 
 # when debug=True, the server will print debug messages
@@ -61,7 +61,7 @@ class TriviaServer:
         self.game_timer = None
         self.countdown_timer = None
         self.countdown = 10
-        self.count = self.countdown
+        self.reset = True
         # debug section (probably delete before submission)
         self.debug = debug
         self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
@@ -130,52 +130,30 @@ class TriviaServer:
 
     def broadcast_countdown(self):
         # count = self.countdown
-        while self.count > 0:
-            self.announce_message(f"The game will start in {self.count} seconds.")
+        while self.reset or count > 0:
+            if self.reset:
+                self.reset = False
+                count = self.countdown
+            self.announce_message(f"The game will start in {count} seconds.")
             if self.debug:
-                print(f"Countdown: {self.count}")
+                print(f"Countdown: {count}")
             time.sleep(1)
-            self.count -= 1
+            count -= 1
+        self.countdown_timer = None
+        self.start_game()
+        
 
     def reset_game_timer(self):
-        if self.game_timer:
-            self.game_timer.cancel()
-        # if hasattr(self, 'countdown_timer') and self.countdown_timer.is_alive():
-        #     self.countdown_timer.join()
-        self.count = self.countdown
-        self.game_timer = threading.Timer(self.countdown, self.start_game)
-        self.game_timer.start()
         if not self.countdown_timer:
             self.countdown_timer = threading.Thread(target=self.broadcast_countdown)
             self.countdown_timer.start()
+        else:
+            self.reset = True
 
     def start_game(self):
         self.state = 2
         self.announce_message("Game is starting now!")
         self.game_time()
-
-    # def run_game(self):
-    #     for i, (question, answer) in enumerate(self.questions):
-    #         self.announce_message(f"Question #{i+1}: {question}")
-    #         # use select to wait for responses from all clients
-    #         # ready = select.select(list(self.clients.values()), [], [], 10)[0]
-    #         responses = self.collect_responses()
-    #         for client_name, response in responses.items():
-    #             if (response.lower() in ['y', 't', '1']) == answer:
-    #                 self.scores[client_name] += 1
-    #         self.announce_message("Next question coming up...")
-    #     self.declare_winner()
-
-    # def collect_responses(self):
-    #     responses = {}
-    #     for client_name, client_socket in self.clients.items():
-    #         try:
-    #             client_socket.settimeout(10)  # Wait for response for up to 10 seconds
-    #             data = client_socket.recv(1024)
-    #             responses[client_name] = data.decode().strip()
-    #         except socket.timeout:
-    #             continue
-    #     return responses
 
     def game_time(self, timer=10):
 
@@ -207,8 +185,6 @@ class TriviaServer:
         if len(ingame) > 1:
             cl = str([c for c in ingame])[1:-1]
             self.announce_message(f"This is the last question! fastest one to answer correctly wins! " + cl + f"\nQuestion la finale: \n{self.questions[-1][0]}")
-            # self.announce_message(f"This is the last question! fastest one to answer correctly wins!")
-            # self.announce_message(f"Last Question: \n{self.questions[-1][0]}")
             client_threads = [threading.Thread(target=self.clients[client].question,
                                                args=(self.questions[-1][0], self.questions[-1][1], timer)) for client in
                               self.clients if client in ingame]
@@ -219,16 +195,8 @@ class TriviaServer:
                 ingame = [max(ingame, key=lambda player: self.clients[player].score)]
 
         self.announce_message(f"Game over! The Winner is: {ingame[0]}")
-        # scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
-        # for client in scoreboard:
-        #     self.announce_message(f"{client}: {self.clients[client].score}")
         self.announce_message(f"Congratulations {ingame[0]} on the big W\n\nThanks for playing!")
         self.reset_state()
-
-    # def declare_winner(self):
-    #     winner = max(self.scores, key=self.scores.get)
-    #     self.announce_message(f"Congratulations {winner}! You are the winner with {self.scores[winner]} correct answers!")
-    #     self.reset_state()
 
     def reset_state(self):
         # self.state = 1
