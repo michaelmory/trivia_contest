@@ -5,6 +5,7 @@ import sys
 import struct
 
 class TriviaClient:
+
     def __init__(self, username="Player"):
         self.username = username
         self.server_name = None
@@ -17,11 +18,9 @@ class TriviaClient:
     def start(self):
         print("Client started, listening for offer requests...")
         self.listen_for_offers()
-
         # This thread will allow the client to receive and send messages once connected
         if self.tcp_socket:
             self.communicate()
-
 
     def listen_for_offers(self):
         while self.running and not self.tcp_socket:
@@ -30,7 +29,6 @@ class TriviaClient:
                 print(f"Received offer from server '{self.server_name}' at {addr[0]}, attempting to connect...") #todo: change message so it fits description
                 self.server_address = (addr[0], int.from_bytes(data[37:39], byteorder='big'))
                 self.connect_to_server()
-
 
     def validate_offer(self, data):
         magic_cookie, message_type = struct.unpack('!I B', data[:5])
@@ -51,9 +49,7 @@ class TriviaClient:
             self.tcp_socket = None
 
     def communicate(self):
-
         self.game_lobby()
-
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
             for sock in read_sockets:
@@ -69,26 +65,51 @@ class TriviaClient:
                     else:
                         print(response.decode(), end='')
 
+    def read_message(self, data):
+        # message_type 0x00 = simply print, 0x01 = game start, 0x02 = invalid, 0x03 = question, 0x04 = disconnect, 0x05 = game over
+        message_type = data[0]
+        content = data[1:].decode().replace(r"\n","\n")
+        return message_type, content
+
     def game_lobby(self):
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
-            print(data)
-            if 'now' in str(data):
+            message_type, message = self.read_message(self.tcp_socket.recv(1024))
+            if message_type == 0x00:
+                print(message)
+            elif message_type == 0x01:
+                print(message)
                 self.game_start()
+            elif message_type == 0x04: # TODO: omri verify please
+                print(message)
+                self.stop()
+                break
+            # data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+            # print(data)
+            # if 'now' in str(data):
+            #     self.game_start()
+
     def game_start(self):
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
-            print(data)
-            if 'Thanks' in data:
+            # data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+            # print(data)
+            # if 'Thanks' in data:
+            #     self.stop()
+            #     break
+            message_type, message = self.read_message(self.tcp_socket.recv(1024))
+            if message_type == 0x00:
+                print(message)
+            elif message_type == 0x03:
+            # if 'Question' in data: #todo: input control
+                print(message)
+                answer = input("enter your answer (Y1T: for Yes \ NF0 for no)")
+                if answer in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                    self.tcp_socket.sendall(answer.encode())
+            elif message_type == 0x05:
+                print(message)
                 self.stop()
                 break
-
-            if 'Question' in data: #todo: input control
-                message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
-                if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
-                    self.tcp_socket.sendall(message.encode())
 
     def stop(self):
         self.running = False
