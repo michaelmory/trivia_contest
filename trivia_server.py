@@ -36,7 +36,7 @@ server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
 udp_port = 13117
 tcp_port = 1337
-min_clients = 1 # start 10 second timer after a player connects and len(self.clients) >= min_clients
+min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
 # when debug=True, the server will print debug messages
 class TriviaServer:
@@ -57,7 +57,7 @@ class TriviaServer:
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.game_timer = None
-        self.countdown = 10
+        self.countdown = 3
         # debug section (probably delete before submission)
         self.debug = debug
         self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
@@ -144,37 +144,14 @@ class TriviaServer:
         
     def start_game(self):
         self.state = 2
-        self.announce_message("Game is starting now!")
+        self.announce_message("Game is starting now!", 0x01)
         self.game_time()
 
-    # def run_game(self):
-    #     for i, (question, answer) in enumerate(self.questions):
-    #         self.announce_message(f"Question #{i+1}: {question}")
-    #         # use select to wait for responses from all clients
-    #         # ready = select.select(list(self.clients.values()), [], [], 10)[0]
-    #         responses = self.collect_responses()
-    #         for client_name, response in responses.items():
-    #             if (response.lower() in ['y', 't', '1']) == answer:
-    #                 self.scores[client_name] += 1
-    #         self.announce_message("Next question coming up...")
-    #     self.declare_winner()
-
-    # def collect_responses(self):
-    #     responses = {}
-    #     for client_name, client_socket in self.clients.items():
-    #         try:
-    #             client_socket.settimeout(10)  # Wait for response for up to 10 seconds
-    #             data = client_socket.recv(1024)
-    #             responses[client_name] = data.decode().strip()
-    #         except socket.timeout:
-    #             continue
-    #     return responses
-    
     def game_time(self,timer = 10):
-
-        ingame = list(self.clients.keys)
-        for i, (question, answer) in enumerate(shuffle(self.questions)):
-            self.announce_message(f"Question #{i+1}: \n{question}")
+        ingame = list(self.clients.keys())
+        shuffle(self.questions)
+        for i, (question, answer) in enumerate(self.questions):
+            self.selective_announce(f"Question #{i+1}: \n{question}",ingame) # TODO: send 0x06 to losers and 0x03 to winners
             client_threads = [threading.Thread(target=self.clients[client].question, args=(question, answer, timer)) for client in self.clients if client in ingame]
             if len(ingame) == 1 or i == len(self.questions)-1:
                 break
@@ -185,8 +162,8 @@ class TriviaServer:
             for client in self.clients:
                 if client in ingame:
                     losers = ingame.copy()
-                    self.announce_message(f"{client.name} is {not client.score*'in'}correct!")
-                    if not client.score:
+                    self.announce_message(f"{client} is {(not self.clients[client].score)*'in'}correct!")
+                    if not self.clients[client].score:
                         losers.remove(client)
                     if len(losers) != 0:
                         ingame = losers
@@ -195,6 +172,7 @@ class TriviaServer:
 
         if len(ingame) > 1:
             self.announce_message(f"This is the last question! fastest one to answer correctly wins!")
+            self.selective_announce(f"Question #{i+1}: \n{self.questions[-1][0]}",ingame)
             client_threads = [threading.Thread(target=self.clients[client].question, args=(self.questions[-1][0], self.questions[-1][1], timer)) for client in self.clients if client in ingame]
             for client_thread in client_threads:
                 client_thread.start()
@@ -202,11 +180,11 @@ class TriviaServer:
                 client_thread.join()
                 ingame = [max(ingame,key = lambda player: self.clients[player].score)]
 
-        self.announce_message(f"Game over! The Winner is: {ingame[0]}")
+        self.announce_message(f"Game over! The Winner is: {ingame[0]}", 0x05)
         # scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
         # for client in scoreboard:
         #     self.announce_message(f"{client}: {self.clients[client].score}")
-        self.announce_message(f"Congratulations {ingmae[0]} on the big W\n\nThanks for playing!")
+        self.announce_message(f"Congratulations {ingame[0]} on the big W\n\nThanks for playing!")
         self.reset_state()
 
     # def declare_winner(self):
@@ -220,18 +198,28 @@ class TriviaServer:
         self.scores.clear()
         self.start()
 
-    def announce_message(self, message):
+    def announce_message(self, message, message_type = 0x06):
+        # message_type 0x06 = simply print, 0x01 = game start, 0x02 = invalid, 0x03 = question, 0x04 = disconnect, 0x05 = game over
         for player in self.clients.values():
-            player.announce(message)
+            player.announce(message, message_type)
+
+    def selective_announce(self, message, ingame):
+        for player in self.clients.values():
+            if player in ingame:
+                player.announce(message, message_type = 0x06)
+            else:
+                player.announce(message, message_type = 0x03)
+
+
 
     def disconnect_client(self, client_name):
-        self.clients[client_name].announce("Disconnected by the server.")
+        self.clients[client_name].announce("Disconnected by the server.", 0x04)
         self.clients[client_name].client_socket.close()
         del self.clients[client_name]
 
     def disconnect_all(self):
         for client_name in self.clients:
-            self.clients[client_name].announce("Disconnected by the server.")
+            self.clients[client_name].announce("Disconnected by the server.", 0x04)
             self.clients[client_name].client_socket.close()
         self.clients.clear()
 
