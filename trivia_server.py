@@ -12,23 +12,6 @@ trivia_questions = [
     ("Is HTTP a stateless protocol?", True),
     ("Does the TCP protocol guarantee delivery of packets in order?", True),
     ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
-    # ("Are the Presentation and Session layers part of the TCP/IP model?", False),
-    # ("Is packet switching a fundamental concept in the Network layer?", True),
-    # ("Does the Application layer provide end-to-end data communication?", True),
-    # ("Is the main purpose of the Transport layer to provide reliable data transfer services to the upper layers?", True),
-    # ("Does the Physical layer define the hardware equipment, cabling, wiring, frequencies, and signals used in the network?", True),
-    # ("Is ICMP used for error reporting and query messages within the Internet Protocol Suite?", True),
-    # ("Are HTTP cookies used to maintain state in the stateless HTTP protocol?", True),
-    # ("Does the Data Link layer establish, maintain, and terminate a connection?", False),
-    # ("Is the Network layer responsible for data routing, packet switching, and control of network congestion?", True),
-    # ("Can caches reduce network latency by storing frequently accessed resources closer to the user?", True),
-    # ("Is the five-layer internet model composed of the Physical, Data Link, Network, Transport, and Application layers?", True),
-    # ("Does HTTPS encrypt the entire HTTP message?", True),
-    # ("Is SMTP a protocol used for receiving email messages?", False),
-    # ("Are IP addresses defined at the Transport layer of the OSI model?", False),
-    # ("Does FTP use TCP for reliable data transfer?", True),
-    # ("Is the primary purpose of ARP to translate URLs into IP addresses?", False),
-    # ("Can network delays be caused solely by the time it takes to propagate signals across the physical medium?", False)
 ]
 server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
@@ -91,6 +74,9 @@ class TriviaServer:
         self.tcp_port = self.tcp_socket.getsockname()[1]
         print(f"Server started, listening on IP {self.host} and port {self.tcp_port}")
 
+    def pack_message(self, message_type, message): 
+        return struct.pack('!I B 32s H', 0xabcddcba, message_type, message.encode().ljust(32), self.tcp_port)
+
     def broadcast_offers(self): #
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
         try:
@@ -144,29 +130,6 @@ class TriviaServer:
         self.announce_message("Game is starting now!")
         self.game_time()
 
-    # def run_game(self):
-    #     for i, (question, answer) in enumerate(self.questions):
-    #         self.announce_message(f"Question #{i+1}: {question}")
-    #         # use select to wait for responses from all clients
-    #         # ready = select.select(list(self.clients.values()), [], [], 10)[0]
-    #         responses = self.collect_responses()
-    #         for client_name, response in responses.items():
-    #             if (response.lower() in ['y', 't', '1']) == answer:
-    #                 self.scores[client_name] += 1
-    #         self.announce_message("Next question coming up...")
-    #     self.declare_winner()
-
-    # def collect_responses(self):
-    #     responses = {}
-    #     for client_name, client_socket in self.clients.items():
-    #         try:
-    #             client_socket.settimeout(10)  # Wait for response for up to 10 seconds
-    #             data = client_socket.recv(1024)
-    #             responses[client_name] = data.decode().strip()
-    #         except socket.timeout:
-    #             continue
-    #     return responses
-    
     def game_time(self,timer = 10):
         for i, (question, answer) in enumerate(self.questions):
             self.announce_message(f"Question #{i+1}:") # TODO: end if there's a winner
@@ -182,29 +145,24 @@ class TriviaServer:
         self.announce_message(f"Congratulations {scoreboard[0]} on the big W\n\nThanks for playing!")
         self.reset_state()
 
-    # def declare_winner(self):
-    #     winner = max(self.scores, key=self.scores.get)
-    #     self.announce_message(f"Congratulations {winner}! You are the winner with {self.scores[winner]} correct answers!")
-    #     self.reset_state()
-
     def reset_state(self):
         # self.state = 1
         self.disconnect_all()
         self.scores.clear()
         self.start()
 
-    def announce_message(self, message):
+    def announce_message(self, message, message_type = 0x03):
         for player in self.clients.values():
-            player.announce(message)
+            player.announce(message, message_type)
 
     def disconnect_client(self, client_name):
-        self.clients[client_name].announce("Disconnected by the server.")
+        self.clients[client_name].announce("Disconnected by the server.", 0x04)
         self.clients[client_name].client_socket.close()
         del self.clients[client_name]
 
     def disconnect_all(self):
         for client_name in self.clients:
-            self.clients[client_name].announce("Disconnected by the server.")
+            self.clients[client_name].announce("Disconnected by the server.", 0x04)
             self.clients[client_name].client_socket.close()
         self.clients.clear()
 

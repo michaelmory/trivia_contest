@@ -49,9 +49,10 @@ class Player:
     def client_socket(self, value):
         self._client_socket = value
 
-    def announce(self, message):
-        message += "\n"
-        self._client_socket.sendall(message.encode())
+    def announce(self, content, message_type=0x03):
+        content += "\n"
+        message = bytes([message_type]) + content.encode()
+        self._client_socket.sendall(message)
 
     def question(self, question, answer, limit = 10):
         start = timer()
