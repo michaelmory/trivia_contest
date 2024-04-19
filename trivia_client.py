@@ -81,16 +81,25 @@ class TriviaClient:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
             data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(data)
-            if 'Thanks' in data:
+            if 'Thanks for playing!' in data:
                 self.stop()
                 break
 
-            if 'Question' in data: #todo: input control
-                message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
-                if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
-                    self.tcp_socket.sendall(message.encode())
+            if 'Round begins!' or "last question!" in data:#todo: input control
+                participants = data.split("\nQ")[0]
+                participants = participants.split("\'")[1:-1]
+                if self.username in participants:
+                    message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
+                    if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                        self.tcp_socket.sendall(message.encode())
 
-    def stop(self):
+    def reset(self):
+        self.tcp_socket = None
+        self.server_address = None
+        self.server_name = None
+        self.start()
+
+    def stop(self): # unused for now
         self.running = False
         if self.tcp_socket:
             self.tcp_socket.close()
@@ -99,6 +108,6 @@ class TriviaClient:
 
 # Usage
 if __name__ == "__main__":
-    username = input("Enter your username: ")
+    username = "yeled zevel"
     client = TriviaClient(username)
     client.start()
