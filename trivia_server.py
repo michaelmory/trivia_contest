@@ -8,6 +8,7 @@ import os
 import time
 from copy import deepcopy
 from trivia_player import Player
+from random import shuffle
 
 trivia_questions = [
     ("Is HTTP a stateless protocol?", True),
@@ -172,10 +173,10 @@ class TriviaServer:
     def game_time(self,timer = 10):
 
         ingame = list(self.clients.keys)
-        for i, (question, answer) in enumerate(self.questions):
-            self.announce_message(f"Question #{i+1}: \n{question}") # TODO: end if there's a winner
+        for i, (question, answer) in enumerate(shuffle(self.questions)):
+            self.announce_message(f"Question #{i+1}: \n{question}")
             client_threads = [threading.Thread(target=self.clients[client].question, args=(question, answer, timer)) for client in self.clients if client in ingame]
-            if len(ingame) == 1:
+            if len(ingame) == 1 or i == len(self.questions)-1:
                 break
             for client_thread in client_threads:
                 client_thread.start()
@@ -192,6 +193,14 @@ class TriviaServer:
                     else:
                         self.announce_message(f"Everyone was wrong - you all continue to the next round!")
 
+        if len(ingame) > 1:
+            self.announce_message(f"This is the last question! fastest one to answer correctly wins!")
+            client_threads = [threading.Thread(target=self.clients[client].question, args=(self.questions[-1][0], self.questions[-1][1], timer)) for client in self.clients if client in ingame]
+            for client_thread in client_threads:
+                client_thread.start()
+            for client_thread in client_threads:
+                client_thread.join()
+                ingame = [max(ingame,key = lambda player: self.clients[player].score)]
 
         self.announce_message(f"Game over! The Winner is: {ingame[0]}")
         # scoreboard = sorted(self.clients, key = lambda x: self.clients[x].score, reverse = True)
