@@ -39,7 +39,6 @@ min_clients = 1 # start 10 second timer after a player connects and len(self.cli
 # when debug=True, the server will print debug messages
 class TriviaServer:
     def __init__(self, host=server_ip, name = server_name, min_clients = min_clients, trivia_questions = trivia_questions, tcp_port=tcp_port, udp_port=udp_port, debug=False):
-        self.connections = []
         self.host = host
         self.tcp_port = tcp_port
         self.udp_port = udp_port
@@ -56,8 +55,8 @@ class TriviaServer:
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.game_timer = None
-        self.countdown = 3
-        # debug section
+        self.countdown = 10
+        # debug section (probably delete before submission)
         self.debug = debug
         self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
         self.udp_socket.settimeout(1)  # Set a timeout of 1 second
@@ -81,7 +80,7 @@ class TriviaServer:
                     continue
         except KeyboardInterrupt:
             print("\nInterrupt received! Shutting down server...")
-            self.state = 0
+            self.shutdown()
         finally:
             # self.shutdown()
             pass
@@ -125,6 +124,8 @@ class TriviaServer:
         count = self.countdown
         while count > 0:
             self.announce_message(f"The game will start in {count} seconds.")
+            if self.debug:
+                print(f"Countdown: {count}")
             time.sleep(1)
             count -= 1
 
@@ -168,7 +169,7 @@ class TriviaServer:
     
     def game_time(self,timer = 10):
         for i, (question, answer) in enumerate(self.questions):
-            self.announce_message(f"Question #{i+1}:")
+            self.announce_message(f"Question #{i+1}:") # TODO: end if there's a winner
             client_threads =  [threading.Thread(target=self.clients[client].question, args=(question,answer,timer)) for client in self.clients]
             for client_thread in client_threads:
                 client_thread.start()
