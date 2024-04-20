@@ -95,7 +95,7 @@ class TriviaServer:
         self.tcp_socket.bind((self.host, self.tcp_port))
         self.tcp_socket.listen()
         self.tcp_port = self.tcp_socket.getsockname()[1]
-        print(f"Server started, listening on IP {self.host} and port {self.tcp_port}")
+        print(f"\033[32mServer started, listening on IP {self.host} and port {self.tcp_port}\033[0m")
 
     def broadcast_offers(self):  #
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
@@ -104,7 +104,7 @@ class TriviaServer:
                 self.udp_socket.sendto(message, ('<broadcast>', self.udp_port))
                 if self.debug:
                     print(
-                        f"Broadcasting server offer to port {self.udp_port}, Clients: {[k for k in self.clients.keys()]}")
+                        f"Broadcasting server offer to port {self.udp_port}, Clients connected: {[k for k in self.clients.keys()]}")
                 time.sleep(1)
         except KeyboardInterrupt:
             print("\nInterrupt received! Shutting down server...")
@@ -127,7 +127,7 @@ class TriviaServer:
                 pass
             client_name = data.decode().strip()
             while not self.valid_username(client_name):  # TODO: if the name is taken, ask the client to choose another name
-                client_socket.sendall("Username invalid or already taken. Please try again with a different name.".encode())
+                client_socket.sendall("\033[1;32mUsername invalid or already taken. Please try again with a different name.".encode())
                 data = client_socket.recv(1024)
                 if not data or self.state != 1:
                     pass
@@ -146,7 +146,7 @@ class TriviaServer:
             if self.reset:
                 self.reset = False
                 count = self.countdown
-            self.announce_message(f"The game will start in {count} seconds.")
+            self.announce_message(f"\033[1;33mThe game will start in {count} seconds.\033[0m")
             if self.debug:
                 print(f"Countdown: {count}")
             time.sleep(1)
@@ -164,7 +164,7 @@ class TriviaServer:
 
     def start_game(self):
         self.state = 2
-        self.announce_message("Game is starting now!")
+        self.announce_message("\033[1;34mGame is starting now!")
         self.game_time()
 
     def game_time(self, timer=10):
@@ -175,7 +175,7 @@ class TriviaServer:
             if len(ingame) == 1 or i == len(self.questions) - 1:
                 break
             cl = str([c for c in ingame])[1:-1]
-            self.announce_message("Round begins! You're up, "+ cl +f"\nQuestion #{i + 1}: \n{question}")
+            self.announce_message("\033[1;35mRound begins! You're up, \033[32m"+ cl +f"\033[1;35m\nQuestion #{i + 1}: \n{question}")
             client_threads = [threading.Thread(target=self.clients[client].question, args=(question, answer, timer)) for
                               client in self.clients if client in ingame]
             for client_thread in client_threads:
@@ -185,18 +185,21 @@ class TriviaServer:
             losers = ingame.copy()
             for client in self.clients:
                 if client in ingame:
-                    self.announce_message(f"{client} is {(not self.clients[client].score) * 'in'}correct!")
+                    if not self.clients[client].score:
+                        self.announce_message(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
+                    else:
+                        self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
                     if not self.clients[client].score:
                         print(client, self.clients[client].score)
                         losers.remove(client)
             if len(losers) != 0:
                 ingame = losers
             else:
-                self.announce_message(f"Everyone was wrong - you all continue to the next round!")
+                self.announce_message(f"\033[1;36mEveryone was wrong - you all continue to the next round!\033[0m")
 
         if len(ingame) > 1:
             cl = str([c for c in ingame])[1:-1]
-            self.announce_message(f"This is the last question! fastest one to answer correctly wins! " + cl + f"\nQuestion la finale: \n{self.questions[-1][0]}")
+            self.announce_message(f"\033[1;95mThis is the last question! fastest one to answer correctly wins!\033[0m \nRemaining contestants:\033[32m" + cl + f"\033[0m\nQuestion la finale: \n{self.questions[-1][0]}")
             client_threads = [threading.Thread(target=self.clients[client].question,
                                                args=(self.questions[-1][0], self.questions[-1][1], timer)) for client in
                               self.clients if client in ingame]
@@ -206,8 +209,8 @@ class TriviaServer:
                 client_thread.join()
                 ingame = [max(ingame, key=lambda player: self.clients[player].score)]
 
-        self.announce_message(f"Game over! The Winner is: {ingame[0]}")
-        self.announce_message(f"Congratulations {ingame[0]} on the big W\n\nThanks for playing!")
+        self.announce_message(f"\033[1;167mGame over! The Winner is: {ingame[0]}\033[0m")
+        self.announce_message(f"\033[1;175mCongratulations {ingame[0]} on the big W\n\nThanks for playing!\033[0m")
         self.reset_state()
 
     def reset_state(self):
