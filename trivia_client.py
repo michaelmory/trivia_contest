@@ -55,6 +55,8 @@ class TriviaClient:
             self.tcp_socket.sendall((self.username + "\n").encode())
             response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             while "name." in response:
+                if "BOT-" in self.username:
+                    self.username = "BOT-"+self.names.pop()
                 print(response)
                 self.username = input("Enter a new username (using only letters, numbers or spaces): ")
                 self.tcp_socket.sendall((self.username + "\n").encode())
