@@ -22,6 +22,15 @@ class TriviaClient:
         if self.tcp_socket:
             self.game_lobby()
 
+    def reset(self): # Reset the client to its initial state
+        print("Resetting...")
+        self.server_name = None
+        self.server_address = None
+        self.tcp_socket = None
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket.bind(("", 13117))
+        self.running = True
+        self.start()
 
     def listen_for_offers(self):
         while self.running and not self.tcp_socket:
@@ -40,8 +49,24 @@ class TriviaClient:
             return True
         return False
 
+    # def connect_to_server(self): # before timeout version
+    #     self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #     try:
+    #         self.tcp_socket.connect(self.server_address)
+    #         self.tcp_socket.sendall((self.username + "\n").encode())
+    #         response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+    #         while "name." in response:
+    #             print(response)
+    #             self.username = input("Enter a new username (using only letters, numbers or spaces): ")
+    #             self.tcp_socket.sendall((self.username + "\n").encode())
+    #             response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+    #         print(f"Connected to server {self.server_name} at {self.server_address[0]}")
+    #     except Exception as e:
+    #         print(f"Failed to connect to server: {e}")
+    #         self.tcp_socket = None
     def connect_to_server(self):
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp_socket.settimeout(5)  # Set a timeout of 5 seconds
         try:
             self.tcp_socket.connect(self.server_address)
             self.tcp_socket.sendall((self.username + "\n").encode())
@@ -52,54 +77,93 @@ class TriviaClient:
                 self.tcp_socket.sendall((self.username + "\n").encode())
                 response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(f"Connected to server {self.server_name} at {self.server_address[0]}")
-
+        except socket.timeout:
+            print("Server is not responding. Connection attempt failed.")
+            self.reset()
         except Exception as e:
             print(f"Failed to connect to server: {e}")
-            self.tcp_socket = None
+            self.tcp_socket = None  # Reset the TCP socket
+            self.reset()
 
-    def communicate(self):
-
-        self.game_lobby()
-
-        while self.running and self.tcp_socket:
-            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            for sock in read_sockets:
-                if sock == sys.stdin:
-                    message = sys.stdin.readline()
-                    print(f' the message is {message}')
-                    self.tcp_socket.sendall(message.encode())
-                else:
-                    response = sock.recv(1024)
-                    if not response:
-                        print("Server disconnected.")
-                        self.running = False
-                    else:
-                        print(response.decode(), end='')
-
+    # def game_lobby(self): # before timeout version
+    #     while self.running and self.tcp_socket:
+    #         read_sockets, _, _ = select.select([self.tcp_socket], [], [])
+    #         data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+    #         if data:
+    #             print(data)
+    #         if 'now!' in str(data):
+    #             self.game_start()
     def game_lobby(self):
+        self.tcp_socket.settimeout(5)  # Set a timeout of 5 seconds
         while self.running and self.tcp_socket:
-            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
-            print(data)
-            if 'now!' in str(data):
-                self.game_start()
-    def game_start(self):
-        while self.running and self.tcp_socket:
-            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
-            print(data)
-            if 'Thanks for playing!' in data:
-                self.stop()
+            try:
+                read_sockets, _, _ = select.select([self.tcp_socket], [], [], 5)  # Set a timeout of 5 seconds
+                if read_sockets:
+                    data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+                    if data:
+                        print(data)
+                    if 'now!' in str(data):
+                        self.game_start()
+                else:
+                    print("Server is not responding. Exiting game.")
+                    self.reset()
+                    break
+            except socket.timeout:
+                print("Server is not responding. Exiting game.")
+                self.reset()
+                break
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                self.reset()
                 break
 
-            if 'Round begins!' or "last question!" in data:#todo: input control
-                participants = data.split("\nQ")[0]
-                participants = participants.split("\'")[1:-1]
-                if self.username in participants:
-                    message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
-                    if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
-                        self.tcp_socket.sendall(message.encode())
+    # def game_start(self): before timeout version
+    #     while self.running and self.tcp_socket:
+    #         read_sockets, _, _ = select.select([self.tcp_socket], [], [])
+    #         data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+    #         print(data)
+    #         if 'Thanks for playing!' in data:
+    #             self.stop()
+    #             break
 
+    #         if 'Round begins!' or "last question!" in data:#todo: input control
+    #             participants = data.split("\nQ")[0]
+    #             participants = participants.split("\'")[1:-1]
+    #             if self.username in participants:
+    #                 message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
+    #                 if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+    #                     self.tcp_socket.sendall(message.encode())
+    def game_start(self):
+        self.tcp_socket.settimeout(5)  # Set a timeout of 5 seconds
+        while self.running and self.tcp_socket:
+            try:
+                read_sockets, _, _ = select.select([self.tcp_socket], [], [], 5)  # Set a timeout of 5 seconds
+                if read_sockets:
+                    data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+                    print(data)
+                    if 'Thanks for playing!' in data:
+                        self.reset()
+                        break
+
+                    if 'Round begins!' or "last question!" in data:
+                        participants = data.split("\nQ")[0]
+                        participants = participants.split("\'")[1:-1]
+                        if self.username in participants:
+                            message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
+                            if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                                self.tcp_socket.sendall(message.encode())
+                else:
+                    print("Server is not responding. Exiting game.")
+                    self.reset()
+                    break
+            except socket.timeout:
+                print("Server is not responding. Exiting game.")
+                self.reset()
+                break
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                self.reset()
+                break
     def stop(self):
         self.running = False
         if self.tcp_socket:
