@@ -9,6 +9,15 @@ class Player:
         self._address = address
         self._dst_port = dst_port
         self._client_socket = client_socket
+        self._time =10
+
+    @property
+    def time(self):
+        return self._time
+
+    @time.setter
+    def time(self, value):
+        self._time = value
 
     @property
     def score(self):
@@ -63,12 +72,14 @@ class Player:
             data = self._client_socket.recv(1024)
             self.score = (int(answer == (data.decode().strip().lower() in ['y', 't', '1']))) * (
                          timer() - start) # calculate how fast and wether or not answered correctly
+            self.time = timer()- start
             self.announce("Answer submitted, waiting for all players to answer...")
             return (answer == (data.decode().strip().lower() in ['y', 't', '1']))
         except socket.timeout:
             # in case of the player not answering in time
             self.announce("Ran out of time, end of round...")
             self.score = 0
+            self.time = 10 
             return 0
 
         

@@ -13,24 +13,24 @@ from random import shuffle
 trivia_questions = [
     ("Is HTTP a stateless protocol?", False),
     ("Does the TCP protocol guarantee delivery of packets in order?", True),
-    ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
-    ("Are the Presentation and Session layers part of the TCP/IP model?", False),
-    ("Is packet switching a fundamental concept in the Network layer?", True),
-    ("Does the Application layer provide end-to-end data communication?", True),
-    ("Is the main purpose of the Transport layer to provide reliable data transfer services to the upper layers?", True),
-    ("Does the Physical layer define the hardware equipment, cabling, wiring, frequencies, and signals used in the network?", True),
-    ("Is ICMP used for error reporting and query messages within the Internet Protocol Suite?", True),
-    ("Are HTTP cookies used to maintain state in the stateless HTTP protocol?", True),
-    ("Does the Data Link layer establish, maintain, and terminate a connection?", False),
-    ("Is the Network layer responsible for data routing, packet switching, and control of network congestion?", True),
-    ("Can caches reduce network latency by storing frequently accessed resources closer to the user?", True),
-    ("Is the five-layer internet model composed of the Physical, Data Link, Network, Transport, and Application layers?", True),
-    ("Does HTTPS encrypt the entire HTTP message?", True),
-    ("Is SMTP a protocol used for receiving email messages?", False),
-    ("Are IP addresses defined at the Transport layer of the OSI model?", False),
-    ("Does FTP use TCP for reliable data transfer?", True),
-    ("Is the primary purpose of ARP to translate URLs into IP addresses?", False),
-    ("Can network delays be caused solely by the time it takes to propagate signals across the physical medium?", False)
+    # ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
+    # ("Are the Presentation and Session layers part of the TCP/IP model?", False),
+    # ("Is packet switching a fundamental concept in the Network layer?", True),
+    # ("Does the Application layer provide end-to-end data communication?", True),
+    # ("Is the main purpose of the Transport layer to provide reliable data transfer services to the upper layers?", True),
+    # ("Does the Physical layer define the hardware equipment, cabling, wiring, frequencies, and signals used in the network?", True),
+    # ("Is ICMP used for error reporting and query messages within the Internet Protocol Suite?", True),
+    # ("Are HTTP cookies used to maintain state in the stateless HTTP protocol?", True),
+    # ("Does the Data Link layer establish, maintain, and terminate a connection?", False),
+    # ("Is the Network layer responsible for data routing, packet switching, and control of network congestion?", True),
+    # ("Can caches reduce network latency by storing frequently accessed resources closer to the user?", True),
+    # ("Is the five-layer internet model composed of the Physical, Data Link, Network, Transport, and Application layers?", True),
+    # ("Does HTTPS encrypt the entire HTTP message?", True),
+    # ("Is SMTP a protocol used for receiving email messages?", False),
+    # ("Are IP addresses defined at the Transport layer of the OSI model?", False),
+    # ("Does FTP use TCP for reliable data transfer?", True),
+    # ("Is the primary purpose of ARP to translate URLs into IP addresses?", False),
+    # ("Can network delays be caused solely by the time it takes to propagate signals across the physical medium?", False)
 ]
 server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
@@ -204,13 +204,13 @@ class TriviaServer:
                         self.announce_message(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
                         if "BOT-" not in client:  
                             # if the player answered wrong calculate the average time it took him to answer up until now
-                            player_speeds[client] = (player_speeds[client]+self.clients[client].score)/(i+1)
+                            player_speeds[client] = (player_speeds[client]+self.clients[client].time)/(i+1)
                         losers.remove(client)  # remove loser from list
                     else: 
                         # if the player answered correctly 
                         self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
                         if "BOT-" not in client:
-                            player_speeds[client] += self.clients[client].score
+                            player_speeds[client] += self.clients[client].time
                     
             if len(losers) != 0:  
                 # if some players are still in the game start next round
@@ -239,7 +239,7 @@ class TriviaServer:
                 client_thread.join()
             for client in ingame:
                 if "BOT-" not in client:
-                    player_speeds[client] = ((player_speeds[client])+self.clients[client].score)/len(self.questions)
+                    player_speeds[client] = ((player_speeds[client])+self.clients[client].time)/len(self.questions)
         for client in self.clients:  
                  # going over the clients checking who answered correctly
             if client in ingame:
@@ -250,7 +250,7 @@ class TriviaServer:
                     self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
                     
         # calculates game statistics
-        ingame = [min(ingame, key=lambda player: self.clients[player].score)]
+        ingame = [min(ingame, key=lambda player: self.clients[player].time)]
         player_speeds = {key: round(value, 3) if value != 0 else 10 for key, value in player_speeds.items()}
 
         player_speeds =dict(sorted(player_speeds.items(), key=lambda item: item[1], reverse=False))
