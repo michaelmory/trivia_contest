@@ -118,6 +118,8 @@ class TriviaServer:
 
     def valid_username(self, client_name):  
         # checking if the client username is valid
+        if "BOT-" in client_name:
+            return True
         if client_name in self.clients or client_name == "":
             return False
         for c in client_name:
@@ -178,12 +180,13 @@ class TriviaServer:
     def game_time(self, timer=10):  
          # the game itself
         ingame = list(self.clients.keys())  # a list of players still in the game
-        player_speeds = {cli: 0 for cli in ingame if "BOT" not in cli}  # a list of how fast players answer on average excluding bots
+        player_speeds = {cli: 0 for cli in ingame if "BOT-" not in cli}  # a list of how fast players answer on average excluding bots
         shuffle(self.questions)  # shuffling the questions so they are not allways the same order
         for i, (question, answer) in enumerate(self.questions):  
             # runing over all of the questions
             if len(ingame) == 1 or i == len(self.questions) - 1:  
                 # if there is only one player left or one question left  no need for the loop
+                print("maybe here?")
                 break
             cl = str([c for c in ingame])[1:-1]  # creating a string of all current players
             self.announce_message("\033[1;35mRound begins! You're up, \033[32m"+ cl +f"\033[1;0m\n\nQuestion #{i + 1}: \n{question}")  # sending question to clients
@@ -199,14 +202,14 @@ class TriviaServer:
                 if client in ingame:
                     if not self.clients[client].score:
                         self.announce_message(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
-                        if "BOT" not in client:  
+                        if "BOT-" not in client:  
                             # if the player answered wrong calculate the average time it took him to answer up until now
                             player_speeds[client] = (player_speeds[client]+self.clients[client].score)/(i+1)
                         losers.remove(client)  # remove loser from list
                     else: 
                         # if the player answered correctly 
                         self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
-                        if "BOT" not in client:
+                        if "BOT-" not in client:
                             player_speeds[client] += self.clients[client].score
                     
             if len(losers) != 0:  
@@ -216,7 +219,7 @@ class TriviaServer:
             else:  
                 # if all current players lost, start another round with everyone
                 for client in ingame:
-                    if "BOT" not in client:
+                    if "BOT-" not in client:
                         player_speeds[client] = (player_speeds[client])*(i+1)
                 self.announce_message(f"\033[1;36mEveryone was wrong - you all continue to the next round!\033[0m")
                 time.sleep(0.5)
@@ -235,7 +238,7 @@ class TriviaServer:
             for client_thread in client_threads:
                 client_thread.join()
             for client in ingame:
-                if "BOT" not in client:
+                if "BOT-" not in client:
                     player_speeds[client] = ((player_speeds[client])+self.clients[client].score)/len(self.questions)
         for client in self.clients:  
                  # going over the clients checking who answered correctly

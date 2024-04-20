@@ -61,6 +61,8 @@ class Player:
             self.client_socket.settimeout(
                 limit)  
             data = self._client_socket.recv(1024)
+            while data.decode().strip() == "!":
+                data = self._client_socket.recv(1024)
             self.score = (int(answer == (data.decode().strip().lower() in ['y', 't', '1']))) * (
                          timer() - start) # calculate how fast and wether or not answered correctly
             self.announce("Answer submitted, waiting for all players to answer...")
