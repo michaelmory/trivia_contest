@@ -127,6 +127,6 @@ class TriviaClient:
 
 # Usage
 if __name__ == "__main__":
-    username = "yeled zevel"
+    username = "yeled"
     client = TriviaClient(username)
     client.start()

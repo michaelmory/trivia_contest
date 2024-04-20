@@ -11,7 +11,7 @@ from trivia_player import Player
 from random import shuffle
 
 trivia_questions = [
-    ("Is HTTP a stateless protocol?", True),
+    ("Is HTTP a stateless protocol?", False),
     ("Does the TCP protocol guarantee delivery of packets in order?", True),
     ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
     ("Are the Presentation and Session layers part of the TCP/IP model?", False),
@@ -140,6 +140,7 @@ class TriviaServer:
                 client_name = data.decode().strip()
             self.clients[client_name] = Player(client_name, addr[0], addr[1], client_socket)
             print(f"New client {client_name} connected from {addr}")
+            self.announce_message(f"\033[1;32m{client_name} has joined the lobby!")
             if len(self.clients) >= self.min_clients:
                 self.reset_game_timer()
         finally:
@@ -248,11 +249,12 @@ class TriviaServer:
                     
         # calculates game statistics
         ingame = [min(ingame, key=lambda player: self.clients[player].score)]
+        player_speeds = {key: round(value, 3) if value != 0 else 10 for key, value in player_speeds.items()}
+
         player_speeds =dict(sorted(player_speeds.items(), key=lambda item: item[1], reverse=False))
-        player_speeds = {key: round(value, 3) for key, value in player_speeds.items()}
         speeds = list(player_speeds.items())
         # check if record was broken
-        if self.fastest_player[1] > speeds[0][1]:
+        if self.fastest_player[1] > speeds[0][1] and speeds[0][1] != 0:
             self.fastest_player = speeds[0]
         # updates scoreboard
         if ingame[0] in self.scoreboard:
@@ -265,7 +267,7 @@ class TriviaServer:
         self.announce_message(f"\033[1;167mGame over! The Winner is: {ingame[0]}\033[0m")
         self.announce_message(f"\033[1;175mCongratulations {ingame[0]} on the big W\n\nThanks for playing!\033[0m")
         self.announce_message(f"\n\n\n\033[1;35mscoreboard:\n\033[0m {self.scoreboard}")
-        self.announce_message(f"\n\033[1;35mfastest player record: \032[1;33m{self.fastest_player} \033[1;36m\n\ncurrent game player speeds:\n  \033[33m{player_speeds}\033[0m")
+        self.announce_message(f"\n\033[1;35mfastest player record: \033[1;33m{self.fastest_player} \033[1;36m\n\ncurrent game player speeds:\n  \033[33m{player_speeds}\033[0m")
         self.reset_state()
 
     def reset_state(self):
