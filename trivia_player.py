@@ -56,16 +56,13 @@ class Player:
     def question(self, question, answer, limit = 10):
         start = timer()
         try:
-            self.client_socket.settimeout(
-                limit)  # TODO: leave a second between questions to avoid next question being sent as answer
+            self.client_socket.settimeout(limit)  # TODO: leave a second between questions to avoid next question being sent as answer
             data = self._client_socket.recv(1024)
             self.score = (int(answer == (data.decode().strip().lower() in ['y', 't', '1']))) * (
                         limit - timer() + start) / limit
             self.announce("Answer submitted, waiting for all players to answer...")
             return (answer == (data.decode().strip().lower() in ['y', 't', '1']))
-        except socket.timeout:
+        except:
             self.announce("Ran out of time, end of round...")
             self.score = 0
             return 0
-
-        

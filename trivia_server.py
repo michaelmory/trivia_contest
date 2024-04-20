@@ -116,8 +116,10 @@ class TriviaServer:
                 client.announce("<3")
                 time.sleep(5)
             except socket.error:
+                print(f"{client.name} disconnected, failed to send heartbeat")
                 self.disconnect_client(client.name)
                 break
+        
     def receieve_heartbeat(self, client): # every 10 seconds
         while self.state == 1 and client in self.clients.values() and not self.countdown_timer:
             try:
@@ -157,7 +159,7 @@ class TriviaServer:
             print(f"New client {client_name} connected from {addr}")
             if len(self.clients) >= self.min_clients:
                 self.reset_game_timer()
-            else: # heartbeat threads
+            elif "BOT" not in client_name: # heartbeat threads
                 heartbeat_send = threading.Thread(target=self.send_heartbeat, args=(self.clients[client_name],))
                 heartbeat_receive = threading.Thread(target=self.receieve_heartbeat, args=(self.clients[client_name],))
                 heartbeat_send.start()
@@ -194,6 +196,12 @@ class TriviaServer:
         self.game_time()
 
     def game_time(self, timer=10):
+        for client in self.clients: # receieve data to clear buffer
+            self.clients[client].client_socket.settimeout(0)
+            try:
+                self.clients[client].client_socket.recv(1024)
+            except:
+                pass
         ingame = list(self.clients.keys())
         shuffle(self.questions)
         for i, (question, answer) in enumerate(self.questions):
@@ -207,17 +215,21 @@ class TriviaServer:
                 client_thread.start()
             for client_thread in client_threads:
                 client_thread.join()
+                print("finished")
             losers = ingame.copy()
             for client in self.clients:
                 if client in ingame:
                     if not self.clients[client].score:
+                        print(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
                         self.announce_message(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
                     else:
+                        print(f"\033[1;32m{client}\033[32m is correct!\033[0m")
                         self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
                     if not self.clients[client].score:
                         print(client, self.clients[client].score)
                         losers.remove(client)
             if len(losers) != 0:
+                print("losers ",losers)
                 ingame = losers
             else:
                 self.announce_message(f"\033[1;36mEveryone was wrong - you all continue to the next round!\033[0m")
@@ -236,6 +248,7 @@ class TriviaServer:
 
         self.announce_message(f"\033[1;167mGame over! The Winner is: {ingame[0]}\033[0m")
         self.announce_message(f"\033[1;175mCongratulations {ingame[0]} on the big W\n\nThanks for playing!\033[0m")
+        print(ingame[0], "won the game!")
         self.reset_state()
 
     def reset_state(self):
@@ -258,6 +271,7 @@ class TriviaServer:
         del self.clients[client_name]
 
     def disconnect_all(self):
+        print("too soon perhaps?")
         for client_name in self.clients:
             try:
                 self.clients[client_name].announce("Disconnected by the server.")

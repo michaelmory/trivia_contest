@@ -3,6 +3,8 @@ import threading
 import select
 import sys
 import struct
+from inputimeout import inputimeout, TimeoutOccurred
+import time
 
 class TriviaClient:
     def __init__(self, username="Player"):
@@ -95,9 +97,7 @@ class TriviaClient:
     #         if 'now!' in str(data):
     #             self.game_start()
     def game_lobby(self):
-        # self.tcp_socket.settimeout(10)  # Set a timeout of 10 seconds
         while self.running and self.tcp_socket:
-            self.tcp_socket.settimeout(10)  # Set a timeout of 10 seconds
             try:
                 read_sockets, _, _ = select.select([self.tcp_socket], [], [], 10)  # Set a timeout of 10 seconds
                 if read_sockets:
@@ -115,12 +115,8 @@ class TriviaClient:
                     print("Server is not responding. Exiting game.")
                     self.reset()
                     break
-            except socket.timeout:
-                print("Server is not responding. Exiting game.")
-                self.reset()
-                break
             except Exception as e:
-                print(f"An error occurred: {e}")
+                print(f"An error occurred: {e}\nResetting game...")
                 self.reset()
                 break
 
@@ -141,24 +137,24 @@ class TriviaClient:
     #                 if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
     #                     self.tcp_socket.sendall(message.encode())
     def game_start(self):
-        self.tcp_socket.settimeout(5)  # Set a timeout of 5 seconds
+        # self.tcp_socket.settimeout(5)  # Set a timeout of 5 seconds
         while self.running and self.tcp_socket:
             try:
-                read_sockets, _, _ = select.select([self.tcp_socket], [], [], 5)  # Set a timeout of 5 seconds
+                read_sockets, _, _ = select.select([self.tcp_socket], [], [], 11)  # Set a timeout of 11 seconds
                 if read_sockets:
                     data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
                     print(data)
                     if 'Thanks for playing!' in data:
                         self.reset()
                         break
-
                     if 'Round begins!' or "last question!" in data:
                         participants = data.split("\nQ")[0]
                         participants = participants.split("\'")[1:-1]
                         if self.username in participants:
-                            message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
-                            if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
-                                self.tcp_socket.sendall(message.encode())
+                            message = self.input_timeout()
+                            print(message)
+                        if message != '!':
+                            self.tcp_socket.sendall(message.encode())
                 else:
                     print("Server is not responding. Exiting game.")
                     self.reset()
@@ -171,6 +167,17 @@ class TriviaClient:
                 print(f"An error occurred: {e}")
                 self.reset()
                 break
+
+    def input_timeout(self):
+        try:
+            timer = time.time()
+            message = inputimeout("enter your answer (\033[1;32m[Y,1,T]\033[0m for Yes \ \033[1;31m[N,F,0]\033[0m for no)", timeout=10)
+            while message not in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                message = inputimeout("Invalid input. Please enter your answer (\033[1;32m[Y,1,T]\033[0m for Yes \ \033[1;31m[N,F,0]\033[0m for no)", timeout=10- (time.time()-timer))
+        except TimeoutOccurred:
+            message = '!'
+        return message
+
     def stop(self):
         self.running = False
         if self.tcp_socket:
