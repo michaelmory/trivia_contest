@@ -15,3 +15,5 @@ This repository contains the Python source code for a local network Server-Clien
 - Questions are asked one at a time to all players, and they must answer within 10 seconds.
 - Players who answered correctly within the time frame go on to the next round, while players who answered wrong are eliminated and become spectators.
 - The game continues until only one player remains, or a tie breaking last round.
+
+Link to GPT chat: https://chat.openai.com/share/e3b081d5-0f05-4565-938e-89251d815021
