@@ -83,14 +83,6 @@ class TriviaClient:
             print(data)
             if 'now!' in str(data):
                 self.game_start()
-
-    def prompt_with_timeout(prompt, timeout):
-        print(prompt, end='', flush=True)
-        rlist, _, _ = select.select([sys.stdin], [], [], timeout)
-        if rlist:
-            return sys.stdin.readline().strip()
-        else:
-            return 'F'
     
     def game_start(self):
         while self.running and self.tcp_socket:
@@ -105,7 +97,7 @@ class TriviaClient:
                 participants = data.split("\nQ")[0]
                 participants = participants.split("\'")[1:-1]
                 if self.username in participants:
-                    message = self.prompt_with_timeout("enter your answer (Y1T: for Yes \ NF0 for no)", 5)
+                    message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
                     if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
                         self.tcp_socket.sendall(message.encode())
 

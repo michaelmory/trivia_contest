@@ -12,8 +12,8 @@ from random import shuffle
 
 trivia_questions = [
     ("Is HTTP a stateless protocol?", True),
-    ("Does the TCP protocol guarantee delivery of packets in order?", True),
-    ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
+    # ("Does the TCP protocol guarantee delivery of packets in order?", True),
+    # ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
     # ("Are the Presentation and Session layers part of the TCP/IP model?", False),
     # ("Is packet switching a fundamental concept in the Network layer?", True),
     # ("Does the Application layer provide end-to-end data communication?", True),
@@ -226,7 +226,7 @@ class TriviaServer:
              # if the main game finished and there are still players then we reached the last question
              # runs the same as the game but uses speed as tiebreaker
             cl = str([c for c in ingame])[1:-1]
-            self.announce_message(f"\033[1;95mThis is the last question! fastest one to answer correctly wins!\033[0m \nRemaining contestants:\033[32m" + cl + f"\033[0m\nQuestion la finale: \n{self.questions[-1][0]}")
+            self.announce_message(f"\033[1;95mThis is the last question! fastest one to answer correctly wins!\033[0m \nRemaining contestants:\033[32m" + cl + f"\033[1;34m\nQuestion la finale: \n{self.questions[-1][0]}\033[0m")
             client_threads = [threading.Thread(target=self.clients[client].question,
                                                args=(self.questions[-1][0], self.questions[-1][1], timer)) for client in
                               self.clients if client in ingame]
@@ -237,6 +237,15 @@ class TriviaServer:
             for client in ingame:
                 if "BOT" not in client:
                     player_speeds[client] = ((player_speeds[client])+self.clients[client].score)/len(self.questions)
+        for client in self.clients:  
+                 # going over the clients checking who answered correctly
+            if client in ingame:
+                if not self.clients[client].score:
+                    self.announce_message(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
+                else: 
+                    # if the player answered correctly 
+                    self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
+                    
         # calculates game statistics
         ingame = [min(ingame, key=lambda player: self.clients[player].score)]
         player_speeds =dict(sorted(player_speeds.items(), key=lambda item: item[1], reverse=False))
@@ -250,7 +259,8 @@ class TriviaServer:
             self.scoreboard[ingame[0]] += 1
         else:
             self.scoreboard[ingame[0]] = 1 
-
+        
+                    
         # announce the winnder and show statistics
         self.announce_message(f"\033[1;167mGame over! The Winner is: {ingame[0]}\033[0m")
         self.announce_message(f"\033[1;175mCongratulations {ingame[0]} on the big W\n\nThanks for playing!\033[0m")
