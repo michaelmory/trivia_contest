@@ -118,6 +118,8 @@ class TriviaServer:
 
     def valid_username(self, client_name):  
         # checking if the client username is valid
+        if "BOT-" in client_name:
+            return True
         if client_name in self.clients or client_name == "":
             return False
         for c in client_name:

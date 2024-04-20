@@ -5,10 +5,16 @@ import sys
 import struct
 from inputimeout import inputimeout, TimeoutOccurred
 import time
+from random import shuffle
+
 
 class TriviaClient:
     def __init__(self, username="Player"):
+        self.names = ['Yosi','Nahum','Rahamim','Shimon','Yohai', 'Takum', 'Human Person', 'Mom', 'Dad', 'Your Ex']
+        shuffle(self.names)
         self.username = username
+        if "BOT-" in self.username:
+            self.username = "BOT-"+self.names.pop()
         self.server_name = None
         self.server_address = None
         self.tcp_socket = None
