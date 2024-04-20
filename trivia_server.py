@@ -50,7 +50,8 @@ class TriviaServer:
         self.questions = trivia_questions
         self.min_clients = min_clients
         self.clients = {}  # {client_name: player_object}
-        self.scores = {}
+        self.fastest_player = ("",10)
+        self.scoreboard = {}
         self.questions = trivia_questions
         self.question_index = 0
         self.state = 1  # 0 = shutdown, 1 = waiting for clients, 2 = trivia game in progress
@@ -168,14 +169,15 @@ class TriviaServer:
         self.game_time()
 
     def game_time(self, timer=10):
-
+        
         ingame = list(self.clients.keys())
+        player_speeds = {cli: 0 for cli in ingame if "BOT" not in cli}
         shuffle(self.questions)
         for i, (question, answer) in enumerate(self.questions):
             if len(ingame) == 1 or i == len(self.questions) - 1:
                 break
             cl = str([c for c in ingame])[1:-1]
-            self.announce_message("\033[1;35mRound begins! You're up, \033[32m"+ cl +f"\033[1;35m\nQuestion #{i + 1}: \n{question}")
+            self.announce_message("\033[1;35mRound begins! You're up, \033[32m"+ cl +f"\033[1;0m\n\nQuestion #{i + 1}: \n{question}")
             client_threads = [threading.Thread(target=self.clients[client].question, args=(question, answer, timer)) for
                               client in self.clients if client in ingame]
             for client_thread in client_threads:
@@ -187,15 +189,26 @@ class TriviaServer:
                 if client in ingame:
                     if not self.clients[client].score:
                         self.announce_message(f"\033[1;31m{client}\033[31m is incorrect!\033[0m")
+                        if "BOT" not in client:
+                            player_speeds[client] = (player_speeds[client]+self.clients[client].score)/(i+1)
                     else:
                         self.announce_message(f"\033[1;32m{client}\033[32m is correct!\033[0m")
+                        if "BOT" not in client:
+                        
+                            player_speeds[client] += self.clients[client].score
                     if not self.clients[client].score:
                         print(client, self.clients[client].score)
                         losers.remove(client)
             if len(losers) != 0:
                 ingame = losers
+                time.sleep(0.5)
             else:
+                for client in ingame:
+                    if "BOT" not in client:
+                        player_speeds[client] = (player_speeds[client])*(i+1)
                 self.announce_message(f"\033[1;36mEveryone was wrong - you all continue to the next round!\033[0m")
+                time.sleep(0.5)
+
 
         if len(ingame) > 1:
             cl = str([c for c in ingame])[1:-1]
@@ -207,16 +220,28 @@ class TriviaServer:
                 client_thread.start()
             for client_thread in client_threads:
                 client_thread.join()
-                ingame = [max(ingame, key=lambda player: self.clients[player].score)]
-
+            for client in ingame:
+                if "BOT" not in client:
+                    player_speeds[client] = ((player_speeds[client])+self.clients[client].score)/len(self.questions)
+        ingame = [min(ingame, key=lambda player: self.clients[player].score)]
+        player_speeds =dict(sorted(player_speeds.items(), key=lambda item: item[1], reverse=False))
+        player_speeds = {key: round(value, 3) for key, value in player_speeds.items()}
+        speeds = list(player_speeds.items())
+        if self.fastest_player[1] > speeds[0][1]:
+            self.fastest_player = speeds[0]
+        if ingame[0] in self.scoreboard:
+            self.scoreboard[ingame[0]] += 1
+        else:
+            self.scoreboard[ingame[0]] = 1 
         self.announce_message(f"\033[1;167mGame over! The Winner is: {ingame[0]}\033[0m")
         self.announce_message(f"\033[1;175mCongratulations {ingame[0]} on the big W\n\nThanks for playing!\033[0m")
+        self.announce_message(f"\n\n\n\033[1;35mscoreboard:\n\033[0m {self.scoreboard}")
+        self.announce_message(f"\n\033[1;35mfastest player record: \032[1;33m{self.fastest_player} \033[1;36m\n\ncurrent game player speeds:\n  \033[33m{player_speeds}\033[0m")
         self.reset_state()
 
     def reset_state(self):
         # self.state = 1
         self.disconnect_all()
-        self.scores.clear()
         self.start()
 
     def announce_message(self, message):

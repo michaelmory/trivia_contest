@@ -83,12 +83,21 @@ class TriviaClient:
             print(data)
             if 'now!' in str(data):
                 self.game_start()
+
+    def prompt_with_timeout(prompt, timeout):
+        print(prompt, end='', flush=True)
+        rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+        if rlist:
+            return sys.stdin.readline().strip()
+        else:
+            return 'F'
+    
     def game_start(self):
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
             data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(data)
-            if 'Thanks for playing!' in data:
+            if 'fastest player record:' in data:
                 self.stop()
                 break
 
@@ -96,7 +105,7 @@ class TriviaClient:
                 participants = data.split("\nQ")[0]
                 participants = participants.split("\'")[1:-1]
                 if self.username in participants:
-                    message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
+                    message = self.prompt_with_timeout("enter your answer (Y1T: for Yes \ NF0 for no)", 5)
                     if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
                         self.tcp_socket.sendall(message.encode())
 

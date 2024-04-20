@@ -60,7 +60,7 @@ class Player:
                 limit)  # TODO: leave a second between questions to avoid next question being sent as answer
             data = self._client_socket.recv(1024)
             self.score = (int(answer == (data.decode().strip().lower() in ['y', 't', '1']))) * (
-                        limit - timer() + start) / limit
+                         timer() - start)
             self.announce("Answer submitted, waiting for all players to answer...")
             return (answer == (data.decode().strip().lower() in ['y', 't', '1']))
         except socket.timeout:
