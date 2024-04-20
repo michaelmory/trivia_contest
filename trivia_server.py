@@ -110,6 +110,26 @@ class TriviaServer:
             print("\nInterrupt received! Shutting down server...")
             self.state = 0
 
+    def send_heartbeat(self, client):  # every 5 seconds
+        while self.state == 1 and client in self.clients.values() and not self.countdown_timer:
+            try:
+                client.announce("<3")
+                time.sleep(5)
+            except socket.error:
+                self.disconnect_client(client.name)
+                break
+    def receieve_heartbeat(self, client): # every 10 seconds
+        while self.state == 1 and client in self.clients.values() and not self.countdown_timer:
+            try:
+                data = client.client_socket.recv(1024)
+                if not data:
+                    print(f"{client.name} disconnected, does not respond")
+                    self.disconnect_client(client.name)
+                    break
+            except socket.error:
+                print(f"{client.name} disconnected, does not respond")
+                self.disconnect_client(client.name)
+                break
 
     def valid_username(self, client_name):
         if client_name in self.clients or client_name == "":
@@ -132,10 +152,16 @@ class TriviaServer:
                 if not data or self.state != 1:
                     pass
                 client_name = data.decode().strip()
+            client_socket.sendall(f"\032[1;32mNew player connected! Hi {client_name}\032[0m\n".encode())
             self.clients[client_name] = Player(client_name, addr[0], addr[1], client_socket)
             print(f"New client {client_name} connected from {addr}")
             if len(self.clients) >= self.min_clients:
                 self.reset_game_timer()
+            else: # heartbeat threads
+                heartbeat_send = threading.Thread(target=self.send_heartbeat, args=(self.clients[client_name],))
+                heartbeat_receive = threading.Thread(target=self.receieve_heartbeat, args=(self.clients[client_name],))
+                heartbeat_send.start()
+                heartbeat_receive.start()
         finally:
             # client_socket.close()
             pass
@@ -168,7 +194,6 @@ class TriviaServer:
         self.game_time()
 
     def game_time(self, timer=10):
-
         ingame = list(self.clients.keys())
         shuffle(self.questions)
         for i, (question, answer) in enumerate(self.questions):
@@ -215,6 +240,7 @@ class TriviaServer:
 
     def reset_state(self):
         # self.state = 1
+        print("Game over! Resetting server...")
         self.disconnect_all()
         self.scores.clear()
         self.start()
@@ -224,13 +250,19 @@ class TriviaServer:
             player.announce(message)
 
     def disconnect_client(self, client_name):
-        self.clients[client_name].announce("Disconnected by the server.")
+        try:
+            self.clients[client_name].announce("Disconnected by the server.")
+        except:
+            pass
         self.clients[client_name].client_socket.close()
         del self.clients[client_name]
 
     def disconnect_all(self):
         for client_name in self.clients:
-            self.clients[client_name].announce("Disconnected by the server.")
+            try:
+                self.clients[client_name].announce("Disconnected by the server.")
+            except:
+                pass
             self.clients[client_name].client_socket.close()
         self.clients.clear()
 

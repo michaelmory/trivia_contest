@@ -76,7 +76,8 @@ class TriviaClient:
                 self.username = input("Enter a new username (using only letters, numbers or spaces): ")
                 self.tcp_socket.sendall((self.username + "\n").encode())
                 response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
-            print(f"Connected to server {self.server_name} at {self.server_address[0]}")
+            if "! Hi "+self.username in response:
+                print(f"Connected to server {self.server_name} at {self.server_address[0]}")
         except socket.timeout:
             print("Server is not responding. Connection attempt failed.")
             self.reset()
@@ -94,17 +95,23 @@ class TriviaClient:
     #         if 'now!' in str(data):
     #             self.game_start()
     def game_lobby(self):
-        self.tcp_socket.settimeout(5)  # Set a timeout of 5 seconds
+        # self.tcp_socket.settimeout(10)  # Set a timeout of 10 seconds
         while self.running and self.tcp_socket:
+            self.tcp_socket.settimeout(10)  # Set a timeout of 10 seconds
             try:
-                read_sockets, _, _ = select.select([self.tcp_socket], [], [], 5)  # Set a timeout of 5 seconds
+                read_sockets, _, _ = select.select([self.tcp_socket], [], [], 10)  # Set a timeout of 10 seconds
                 if read_sockets:
                     data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
                     if data:
+                        data = data.replace("<3\n","")
+                        self.tcp_socket.sendall("<3".encode())
+                        if data == "":
+                            continue
                         print(data)
                     if 'now!' in str(data):
                         self.game_start()
                 else:
+                    # check if the server is still responding
                     print("Server is not responding. Exiting game.")
                     self.reset()
                     break
