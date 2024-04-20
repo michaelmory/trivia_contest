@@ -60,6 +60,7 @@ class Player:
             data = self._client_socket.recv(1024)
             self.score = (int(answer == (data.decode().strip().lower() in ['y', 't', '1']))) * (
                         limit - timer() + start) / limit
+            print(data.decode())
             self.announce("Answer submitted, waiting for all players to answer...")
             return (answer == (data.decode().strip().lower() in ['y', 't', '1']))
         except:

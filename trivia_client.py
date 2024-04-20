@@ -102,14 +102,15 @@ class TriviaClient:
                 read_sockets, _, _ = select.select([self.tcp_socket], [], [], 10)  # Set a timeout of 10 seconds
                 if read_sockets:
                     data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
-                    if data:
+                    if 'now!' in str(data):
+                        print(data)
+                        self.game_start()
+                    elif data:
                         data = data.replace("<3\n","")
                         self.tcp_socket.sendall("<3".encode())
                         if data == "":
                             continue
                         print(data)
-                    if 'now!' in str(data):
-                        self.game_start()
                 else:
                     # check if the server is still responding
                     print("Server is not responding. Exiting game.")
@@ -175,7 +176,9 @@ class TriviaClient:
             while message not in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
                 message = inputimeout("Invalid input. Please enter your answer (\033[1;32m[Y,1,T]\033[0m for Yes \ \033[1;31m[N,F,0]\033[0m for no)", timeout=10- (time.time()-timer))
         except TimeoutOccurred:
+            print(time.time()-timer)
             message = '!'
+        print("returned message:    ", message)
         return message
 
     def stop(self):

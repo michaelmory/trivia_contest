@@ -215,7 +215,6 @@ class TriviaServer:
                 client_thread.start()
             for client_thread in client_threads:
                 client_thread.join()
-                print("finished")
             losers = ingame.copy()
             for client in self.clients:
                 if client in ingame:
