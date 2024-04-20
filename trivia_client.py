@@ -6,7 +6,8 @@ import struct
 from inputimeout import inputimeout, TimeoutOccurred
 import time
 from random import shuffle
-
+import os
+os.system('color')
 
 class TriviaClient:
     def __init__(self, username="Player"):
