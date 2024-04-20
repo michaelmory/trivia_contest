@@ -95,7 +95,7 @@ class TriviaServer:
         self.tcp_socket.bind((self.host, self.tcp_port))
         self.tcp_socket.listen()
         self.tcp_port = self.tcp_socket.getsockname()[1]
-        print(f"Server started, listening on IP {self.host} and port {self.tcp_port}")
+        print(f"\033[91mServer started, listening on IP {self.host} and port {self.tcp_port}\033[0m")
 
     def broadcast_offers(self):  #
         message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
@@ -192,7 +192,7 @@ class TriviaServer:
             if len(losers) != 0:
                 ingame = losers
             else:
-                self.announce_message(f"Everyone was wrong - you all continue to the next round!")
+                self.announce_message(f"\033[91mEveryone was wrong - you all continue to the next round!\033[0m")
 
         if len(ingame) > 1:
             cl = str([c for c in ingame])[1:-1]
