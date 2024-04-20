@@ -3,6 +3,8 @@ import threading
 import select
 import sys
 import struct
+from inputimeout import inputimeout, TimeoutOccurred
+import time
 
 class TriviaClient:
     def __init__(self, username="Player"):
@@ -84,6 +86,19 @@ class TriviaClient:
             if 'now!' in str(data):
                 self.game_start()
     
+    def input_timeout(self):
+        try:
+            timer = time.time()
+            message = inputimeout("enter your answer (\033[1;32m[Y,1,T]\033[0m for Yes \ \033[1;31m[N,F,0]\033[0m for no)", timeout=10)
+            while message not in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                message = inputimeout("Invalid input. Please enter your answer (\033[1;32m[Y,1,T]\033[0m for Yes \ \033[1;31m[N,F,0]\033[0m for no)", timeout=10- (time.time()-timer))
+        except TimeoutOccurred:
+            print(time.time()-timer)
+            message = '!'
+        print("returned message:    ", message)
+        return message
+
+
     def game_start(self):
         while self.running and self.tcp_socket:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
@@ -97,8 +112,10 @@ class TriviaClient:
                 participants = data.split("\nQ")[0]
                 participants = participants.split("\'")[1:-1]
                 if self.username in participants:
-                    message = input("enter your answer (Y1T: for Yes \ NF0 for no)")
-                    if message in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
+                    if self.username in participants:
+                        message = self.input_timeout()
+                        print(message)
+                    if message != '!':
                         self.tcp_socket.sendall(message.encode())
 
     def stop(self):

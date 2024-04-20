@@ -7,7 +7,7 @@ import socket
 class TriviaBot(TriviaClient):
 
     def __init__(self):
-        name = f"BOT {random.choice(['Yosi','Nahum','Rahamim','Shimon','Yohai'])}"
+        name = f"BOT-{random.choice(['Yosi','Nahum','Rahamim','Shimon','Yohai'])}"
         super().__init__(name)
 
     def game_start(self):
