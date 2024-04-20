@@ -13,37 +13,41 @@ from random import shuffle
 trivia_questions = [
     ("Is HTTP a stateless protocol?", False),
     ("Does the TCP protocol guarantee delivery of packets in order?", True),
-    # ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
-    # ("Are the Presentation and Session layers part of the TCP/IP model?", False),
-    # ("Is packet switching a fundamental concept in the Network layer?", True),
-    # ("Does the Application layer provide end-to-end data communication?", True),
-    # ("Is the main purpose of the Transport layer to provide reliable data transfer services to the upper layers?", True),
-    # ("Does the Physical layer define the hardware equipment, cabling, wiring, frequencies, and signals used in the network?", True),
-    # ("Is ICMP used for error reporting and query messages within the Internet Protocol Suite?", True),
-    # ("Are HTTP cookies used to maintain state in the stateless HTTP protocol?", True),
-    # ("Does the Data Link layer establish, maintain, and terminate a connection?", False),
-    # ("Is the Network layer responsible for data routing, packet switching, and control of network congestion?", True),
-    # ("Can caches reduce network latency by storing frequently accessed resources closer to the user?", True),
-    # ("Is the five-layer internet model composed of the Physical, Data Link, Network, Transport, and Application layers?", True),
-    # ("Does HTTPS encrypt the entire HTTP message?", True),
-    # ("Is SMTP a protocol used for receiving email messages?", False),
-    # ("Are IP addresses defined at the Transport layer of the OSI model?", False),
-    # ("Does FTP use TCP for reliable data transfer?", True),
-    # ("Is the primary purpose of ARP to translate URLs into IP addresses?", False),
-    # ("Can network delays be caused solely by the time it takes to propagate signals across the physical medium?", False)
+    ("Is UDP faster than TCP because it requires a three-way handshake for connection establishment?", False),
+    ("Are the Presentation and Session layers part of the TCP/IP model?", False),
+    ("Is packet switching a fundamental concept in the Network layer?", True),
+    ("Does the Application layer provide end-to-end data communication?", True),
+    ("Is the main purpose of the Transport layer to provide reliable data transfer services to the upper layers?", True),
+    ("Does the Physical layer define the hardware equipment, cabling, wiring, frequencies, and signals used in the network?", True),
+    ("Is ICMP used for error reporting and query messages within the Internet Protocol Suite?", True),
+    ("Are HTTP cookies used to maintain state in the stateless HTTP protocol?", True),
+    ("Does the Data Link layer establish, maintain, and terminate a connection?", False),
+    ("Is the Network layer responsible for data routing, packet switching, and control of network congestion?", True),
+    ("Can caches reduce network latency by storing frequently accessed resources closer to the user?", True),
+    ("Is the five-layer internet model composed of the Physical, Data Link, Network, Transport, and Application layers?", True),
+    ("Does HTTPS encrypt the entire HTTP message?", True),
+    ("Is SMTP a protocol used for receiving email messages?", False),
+    ("Are IP addresses defined at the Transport layer of the OSI model?", False),
+    ("Does FTP use TCP for reliable data transfer?", True),
+    ("Is the primary purpose of ARP to translate URLs into IP addresses?", False),
+    ("Can network delays be caused solely by the time it takes to propagate signals across the physical medium?", False)
 ]
 server_ip = socket.gethostbyname(socket.gethostname())
-server_name = "Mystic"
-udp_port = 13117
-tcp_port = 1337
-min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
-
-# when debug=True, the server will print debug messages
 class TriviaServer:
-    # class and init of our game server
-    def __init__(self, host=server_ip, name=server_name, min_clients=min_clients, trivia_questions=trivia_questions,
-                 tcp_port=tcp_port, udp_port=udp_port, debug=False):
+    
+    def __init__(self, name="Mystic", host=server_ip, min_clients=2, trivia_questions=trivia_questions,
+                 tcp_port=1337, udp_port=13117):
+        """
+        Initialize the TriviaServer with the given parameters.
+        input: host - the IP address of the server
+               name - the name of the server
+               min_clients - the minimum number of clients needed to start the game
+               trivia_questions - a list of tuples containing questions and answers
+               tcp_port - the port number for the TCP connection
+               udp_port - the port number for the UDP connection
+        output: None
+        """
         self.host = host
         self.tcp_port = tcp_port
         self.udp_port = udp_port
@@ -66,12 +70,16 @@ class TriviaServer:
         self.udp_socket.settimeout(1)  # Set a timeout of 1 second
 
     def start(self):
-          # start runing the server
-        if self.state == 1:
+        """
+        Start the TriviaServer. This function sets up the TCP and UDP sockets,
+        broadcasts offers to clients, and handles client connections.
+        no input or output
+        """
+        if self.state == 1: # initial start
             self.setup_tcp_socket()
-        elif self.state == 2:
+        elif self.state == 2: # server was reset
             self.state = 1
-        else:
+        else: # only one other option
             self.shutdown()
         udp_thread = threading.Thread(target=self.broadcast_offers)
           # start broadcasting for players
@@ -89,21 +97,27 @@ class TriviaServer:
             print("\nInterrupt received! Shutting down server...")
             self.shutdown()
         finally:
-            # self.shutdown()
             pass
 
     def setup_tcp_socket(self):  
-      #setting up TCP connection
+        """
+        Set up the TCP socket for the server.
+        no input or output
+        """
         self.tcp_socket.bind((self.host, self.tcp_port))
         self.tcp_socket.listen()
         self.tcp_port = self.tcp_socket.getsockname()[1]
         print(f"\033[32mServer started, listening on IP {self.host} and port {self.tcp_port}\033[0m")
 
-    def broadcast_offers(self):  
+    def broadcast_offers(self):
+        """
+        Broadcast server offers to clients using UDP.
+        no input or output
+        """
         # broadcasting offers for anyone who wants to join
-        message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port)
+        message = struct.pack('!I B 32s H', 0xabcddcba, 0x02, self.name.encode().ljust(32), self.tcp_port) # breoadcast message standard
         try:
-            while self.state == 1:
+            while self.state == 1: # while the game has not started, keep broadcasting every second
                 self.udp_socket.sendto(message, ('<broadcast>', self.udp_port))
                 print(f"Broadcasting server offer to port {self.udp_port}, Clients connected: {[k for k in self.clients.keys()]}")
                 time.sleep(1)
@@ -112,17 +126,28 @@ class TriviaServer:
             self.state = 0
 
 
-    def valid_username(self, client_name):  
-        # checking if the client username is valid
+    def valid_username(self, client_name):
+        """
+        Validate the client's username.
+        input: client_name - the client's username
+        output: True if the username is valid, False otherwise
+        """
         if client_name in self.clients or client_name == "":
             return False
         for c in client_name:
             if not c.isalnum() and not c.isspace():
-                if "BOT-" in client_name:
+                if "BOT-" in client_name: # if the username is a bot, it is valid
                     return True
                 return False
         return True
-    def handle_client(self, client_socket, addr):  
+    def handle_client(self, client_socket, addr):
+        """
+        Handle a client connection. This function receives the client's username,
+        validates it, and adds the client to the game.
+        input: client_socket - the client's socket
+                addr - the client's address
+        output: None
+        """
         # connect to the client and start game if enougn players are present
         print(f"{addr} attempting to connect")  
         try:
@@ -130,31 +155,34 @@ class TriviaServer:
             if not data or self.state != 1:
                 pass
             client_name = data.decode().strip()
-            while not self.valid_username(client_name):  
+            while not self.valid_username(client_name):  # check if the username is valid and not taken, if not ask for a new one
                 client_socket.sendall("\033[1;32mUsername invalid or already taken. Please try again with a different name.".encode())
                 data = client_socket.recv(1024)
-                if not data or self.state != 1:
+                if not data or self.state != 1: # if the server has still not started or the client disconnected
                     pass
                 client_name = data.decode().strip()
             self.clients[client_name] = Player(client_name, addr[0], addr[1], client_socket)
             print(f"New client {client_name} connected from {addr}")
             self.announce_message(f"\033[1;32m{client_name} has joined the lobby!")
-            if len(self.clients) >= self.min_clients:
+            if len(self.clients) >= self.min_clients: # if enough players are present start the game
                 self.reset_game_timer()
         finally:
-            # client_socket.close()
             pass
 
     def broadcast_countdown(self):  
+        """
+        Broadcast a countdown message to all clients then starts the game.
+        Threaded function, countdown can be reset.
+        no input or output
+        """
         # broadcasting to all players that the game will start soon
-        # count = self.countdown
+        count = self.countdown
         while self.reset or count > 0:
-            if self.reset:
+            if self.reset: # if the countdown was reset, start over
                 self.reset = False
                 count = self.countdown
             self.announce_message(f"\033[1;33mThe game will start in {count} seconds.\033[0m")
-            if self.debug:
-                print(f"Countdown: {count}")
+            print(f"Countdown: {count}")
             time.sleep(1)
             count -= 1
         self.reset = True
@@ -162,6 +190,9 @@ class TriviaServer:
         self.start_game()
 
     def reset_game_timer(self):
+        """
+        Reset or initiate the game timer.
+        no input or output"""
         if not self.countdown_timer:
             self.countdown_timer = threading.Thread(target=self.broadcast_countdown)
             self.countdown_timer.start()
@@ -169,16 +200,26 @@ class TriviaServer:
             self.reset = True
 
     def start_game(self): 
-        # starting the game
+        """
+        Start the game.
+        no input or output
+        """
         self.state = 2
         self.announce_message("\033[1;34mGame is starting now!")
         self.game_time()
 
-    def game_time(self, timer=10):  
+    def game_time(self, timer=10):
+        """
+        Run the game.
+        input: timer - the time limit for answering questions
+        output: None
+        """
          # the game itself
         ingame = list(self.clients.keys())  # a list of players still in the game
         player_speeds = {cli: 0 for cli in ingame if "BOT-" not in cli}  # a list of how fast players answer on average excluding bots
         shuffle(self.questions)  # shuffling the questions so they are not allways the same order
+
+        # Regular rounds
         for i, (question, answer) in enumerate(self.questions):  
             # runing over all of the questions
             if len(ingame) == 1 or i == len(self.questions) - 1:  
@@ -220,7 +261,7 @@ class TriviaServer:
                 self.announce_message(f"\033[1;36mEveryone was wrong - you all continue to the next round!\033[0m")
                 time.sleep(0.5)
 
-
+        # Final round / Tiebreaker
         if len(ingame) > 1: 
              # if the main game finished and there are still players then we reached the last question
              # runs the same as the game but uses speed as tiebreaker
@@ -260,7 +301,6 @@ class TriviaServer:
         else:
             self.scoreboard[ingame[0]] = 1 
         
-                    
         # announce the winnder and show statistics
         self.announce_message(f"\033[1;167mGame over! The Winner is: {ingame[0]}\033[0m")
         self.announce_message(f"\033[1;175mCongratulations {ingame[0]} on the big W\n\nThanks for playing!\033[0m")
@@ -269,22 +309,41 @@ class TriviaServer:
         self.reset_state()
 
     def reset_state(self):
+        """
+        Reset the server state.
+        called after the game ends
+        no input or output
+        """
         # restart the game
         self.disconnect_all()
         self.start()
 
     def announce_message(self, message):
+        """
+        A form of broadcasting a message to all connected clients.
+        input: message - the message to send to all clients
+        output: None
+        """
         # send a message to all clients
         for player in self.clients.values():
             player.announce(message)
 
     def disconnect_client(self, client_name):
+        """
+        Disconnect a client from the server.
+        input: client_name - the client's username
+        output: None
+        """
         # disconnect client from the server
         self.clients[client_name].announce("Disconnected by the server.")
         self.clients[client_name].client_socket.close()
         del self.clients[client_name]
 
     def disconnect_all(self):
+        """
+        Disconnect all clients from the server.
+        no input or output
+        """
         # disconnect all clients from server
         for client_name in self.clients:
             self.clients[client_name].announce("Disconnected by the server.")
@@ -292,6 +351,11 @@ class TriviaServer:
         self.clients.clear()
 
     def shutdown(self):
+        """
+        Shut down the server.
+        no input or output
+        """
+        # shut down the seever
         self.state = 0
         self.disconnect_all()
         self.tcp_socket.close()
@@ -299,9 +363,8 @@ class TriviaServer:
         print("Server shutdown complete.")
 
 
-# Usage
 if __name__ == "__main__":
-    server = TriviaServer(debug=True)
+    server = TriviaServer("ServeReder")
     try:
         server.start()
     except KeyboardInterrupt:
