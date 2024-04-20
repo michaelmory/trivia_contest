@@ -20,7 +20,7 @@ class TriviaClient:
 
         # This thread will allow the client to receive and send messages once connected
         if self.tcp_socket:
-            self.communicate()
+            self.game_lobby()
 
 
     def listen_for_offers(self):
@@ -45,7 +45,14 @@ class TriviaClient:
         try:
             self.tcp_socket.connect(self.server_address)
             self.tcp_socket.sendall((self.username + "\n").encode())
+            response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
+            while "name." in response:
+                print(response)
+                self.username = input("Enter a new username (using only letters, numbers or spaces): ")
+                self.tcp_socket.sendall((self.username + "\n").encode())
+                response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(f"Connected to server {self.server_name} at {self.server_address[0]}")
+
         except Exception as e:
             print(f"Failed to connect to server: {e}")
             self.tcp_socket = None
@@ -74,7 +81,7 @@ class TriviaClient:
             read_sockets, _, _ = select.select([self.tcp_socket], [], [])
             data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(data)
-            if 'now' in str(data):
+            if 'now!' in str(data):
                 self.game_start()
     def game_start(self):
         while self.running and self.tcp_socket:

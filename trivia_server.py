@@ -36,7 +36,7 @@ server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
 udp_port = 13117
 tcp_port = 1337
-min_clients = 1 # start 10 second timer after a player connects and len(self.clients) >= min_clients
+min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
 
 # when debug=True, the server will print debug messages
@@ -110,20 +110,32 @@ class TriviaServer:
             print("\nInterrupt received! Shutting down server...")
             self.state = 0
 
+
+    def valid_username(self, client_name):
+        if client_name in self.clients or client_name == "":
+            return False
+        for c in client_name:
+            if not c.isalnum() and not c.isspace():
+                return False
+        return True
     def handle_client(self, client_socket, addr):  #
-        print(f"Connected to {addr}")  # TODO: say connected only if connected
+        print(f"{addr} attempting to connect")  # TODO: say connected only if connected
         try:
             # while self.state == 1:
             data = client_socket.recv(1024)
             if not data or self.state != 1:
                 pass
             client_name = data.decode().strip()
-            if client_name not in self.clients:  # TODO: if the name is taken, ask the client to choose another name
-                self.clients[client_name] = Player(client_name, addr[0], addr[1], client_socket)
-                print(f"New client {client_name} connected from {addr}")
-                if len(self.clients) >= self.min_clients:
-                    self.reset_game_timer()
-
+            while not self.valid_username(client_name):  # TODO: if the name is taken, ask the client to choose another name
+                client_socket.sendall("Username invalid or already taken. Please try again with a different name.".encode())
+                data = client_socket.recv(1024)
+                if not data or self.state != 1:
+                    pass
+                client_name = data.decode().strip()
+            self.clients[client_name] = Player(client_name, addr[0], addr[1], client_socket)
+            print(f"New client {client_name} connected from {addr}")
+            if len(self.clients) >= self.min_clients:
+                self.reset_game_timer()
         finally:
             # client_socket.close()
             pass
@@ -139,9 +151,9 @@ class TriviaServer:
                 print(f"Countdown: {count}")
             time.sleep(1)
             count -= 1
+        self.reset = True
         self.countdown_timer = None
         self.start_game()
-        
 
     def reset_game_timer(self):
         if not self.countdown_timer:
