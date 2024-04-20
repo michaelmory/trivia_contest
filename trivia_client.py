@@ -10,17 +10,27 @@ from random import shuffle
 
 class TriviaClient:
     def __init__(self, username="Player"):
-        self.names = ['Yosi','Nahum','Rahamim','Shimon','Yohai', 'Takum', 'Human Person', 'Mom', 'Dad', 'Your Ex']
-        shuffle(self.names)
+        self.bot_names = ['Yosi','Nahum','Rahamim','Shimon','Yohai', 'Takum', 'Human Person', 'Mom', 'Dad', 'Your Ex'] # bot names
+        shuffle(self.bot_names)
         self.username = username
-        if "BOT-" in self.username:
-            self.username = "BOT-"+self.names.pop()
+        if "BOT-" in self.username: # if the username is a bot, choose a random name
+            self.username = "BOT-"+self.bot_names.pop()
         self.server_name = None
         self.server_address = None
         self.tcp_socket = None
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_socket.bind(("", 13117))  # Listen on all interfaces for UDP broadcasts
         self.running = True
+
+    def reset(self): # Reset the client to its initial state
+        print("Resetting...")
+        self.server_name = None
+        self.server_address = None
+        self.tcp_socket = None
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket.bind(("", 13117))
+        self.running = True
+        self.start()
 
     def start(self):
         print("Client started, listening for offer requests...")
@@ -56,7 +66,7 @@ class TriviaClient:
             response = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             while "name." in response:
                 if "BOT-" in self.username:
-                    self.username = "BOT-"+self.names.pop()
+                    self.username = "BOT-"+self.bot_names.pop()
                 print(response)
                 self.username = input("Enter a new username (using only letters, numbers or spaces): ")
                 self.tcp_socket.sendall((self.username + "\n").encode())
@@ -66,25 +76,6 @@ class TriviaClient:
         except Exception as e:
             print(f"Failed to connect to server: {e}")
             self.tcp_socket = None
-
-    def communicate(self):
-
-        self.game_lobby()
-
-        while self.running and self.tcp_socket:
-            read_sockets, _, _ = select.select([self.tcp_socket], [], [])
-            for sock in read_sockets:
-                if sock == sys.stdin:
-                    message = sys.stdin.readline()
-                    print(f' the message is {message}')
-                    self.tcp_socket.sendall(message.encode())
-                else:
-                    response = sock.recv(1024)
-                    if not response:
-                        print("Server disconnected.")
-                        self.running = False
-                    else:
-                        print(response.decode(), end='')
 
     def game_lobby(self):
         while self.running and self.tcp_socket:
@@ -101,9 +92,7 @@ class TriviaClient:
             while message not in ['0', 'N', 'n', 'f', 'F', '1', 'y', 'Y', 't', 'T']:
                 message = inputimeout("Invalid input. Please enter your answer (\033[1;32m[Y,1,T]\033[0m for Yes \ \033[1;31m[N,F,0]\033[0m for no)", timeout=10- (time.time()-timer))
         except TimeoutOccurred:
-            print(time.time()-timer)
             message = '!'
-        print("returned message:    ", message)
         return message
 
 
@@ -113,9 +102,11 @@ class TriviaClient:
             data = self.tcp_socket.recv(1024).decode().replace(r"\n","\n")
             print(data)
             if 'fastest player record:' in data:
-                self.stop()
+                self.reset()
                 break
-
+            if 'Thanks for playing!' in data:
+                self.reset()
+                break
             if 'Round begins!' or "last question!" in data:#todo: input control
                 participants = data.split("\nQ")[0]
                 participants = participants.split("\'")[1:-1]

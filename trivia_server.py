@@ -36,7 +36,7 @@ server_ip = socket.gethostbyname(socket.gethostname())
 server_name = "Mystic"
 udp_port = 13117
 tcp_port = 1337
-min_clients = 1 # start 10 second timer after a player connects and len(self.clients) >= min_clients
+min_clients = 2 # start 10 second timer after a player connects and len(self.clients) >= min_clients
 
 
 # when debug=True, the server will print debug messages
