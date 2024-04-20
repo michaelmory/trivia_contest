@@ -62,8 +62,6 @@ class TriviaServer:
         self.countdown_timer = None
         self.countdown = 10
         self.reset = True
-        # debug section (probably delete before submission)
-        self.debug = debug
         self.tcp_socket.settimeout(1)  # Set a timeout of 1 second
         self.udp_socket.settimeout(1)  # Set a timeout of 1 second
 
@@ -107,9 +105,7 @@ class TriviaServer:
         try:
             while self.state == 1:
                 self.udp_socket.sendto(message, ('<broadcast>', self.udp_port))
-                if self.debug:
-                    print(
-                        f"Broadcasting server offer to port {self.udp_port}, Clients connected: {[k for k in self.clients.keys()]}")
+                print(f"Broadcasting server offer to port {self.udp_port}, Clients connected: {[k for k in self.clients.keys()]}")
                 time.sleep(1)
         except KeyboardInterrupt:
             print("\nInterrupt received! Shutting down server...")
@@ -296,9 +292,7 @@ class TriviaServer:
         self.clients.clear()
 
     def shutdown(self):
-        # shut down the seever
         self.state = 0
-        # disconnect all clients
         self.disconnect_all()
         self.tcp_socket.close()
         self.udp_socket.close()
